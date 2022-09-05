@@ -10,44 +10,50 @@
 
 #include "job.h"
 
-// #include <QtConcurrent/QtConcurrentRun>
-// #include <QDBusConnection>
-
 class JobPrivate
 {
 public:
-    explicit JobPrivate(Job *parent)
-        : q_ptr(parent)
+    explicit JobPrivate(std::function<void(Job *)> f, Job *parent)
+        : worker(new JobWorker(f, parent))
+        , q_ptr(parent)
     {
     }
 
+    JobWorker *worker = nullptr;
     Job *q_ptr = nullptr;
 
+public:
     int progress;
 };
 
-Job::Job(std::function<void()> f, QObject *parent)
-    :func(f)
-    ,dd_ptr(new JobPrivate(this))
+Job::Job(std::function<void(Job *)> f, QObject *parent)
+    : dd_ptr(new JobPrivate(f, this))
 {
+    this->connect(dd_ptr->worker, &JobWorker::finish, this, &Job::finish);
 }
 
-int Job::Progress() const
+quint32 Job::Progress() const
 {
     Q_D(const Job);
     return d->progress;
 }
-
-QString Job::Status() const
+void Job::setProgress(quint32 progress)
 {
-    return QString();
+    Q_D(Job);
+    d->progress = progress;
 }
 
-void Job::run()
+void Job::startWork()
 {
-    func();
-    Q_EMIT this->Finish();
-    this->deleteLater();
+    Q_D(Job);
+    d->worker->start();
 }
 
 Job::~Job() = default;
+
+void JobWorker::run()
+{
+    auto job = qobject_cast<Job *>(this->parent());
+    func(job);
+    Q_EMIT this->finish();
+}

@@ -9,12 +9,14 @@
  */
 
 #include "module/repo/ostree_repohelper.h"
-#include "job_manager.h"
 
 #include <QDBusConnection>
 #include <QTimer>
 #include <QUuid>
 
+#include "module/dbus_ipc/dbus_package_manager_common.h"
+
+#include "job_manager.h"
 #include "job.h"
 
 class JobManagerPrivate
@@ -25,6 +27,8 @@ public:
     {
     }
 
+    QMap<QString, Job *> jobs;
+
     JobManager *q_ptr = nullptr;
 };
 
@@ -32,18 +36,15 @@ JobManager::JobManager() = default;
 
 JobManager::~JobManager() = default;
 
-QString JobManager::CreateJob(std::function<void()> f)
+Job *JobManager::CreateJob(std::function<void(Job *)> f)
 {
     auto jobId = QUuid::createUuid().toString(QUuid::Id128);
-    auto jobPath = "/com/deepin/linglong/Job/List/" + jobId;
+    auto jobPath = QLatin1String(linglong::DBusPackageManagerJobPath) + "/List/" + jobId;
     auto jr = new Job(f, this);
-    jr->start();
-
-    return jobId;
+    jr->id = jobPath;
+    return jr;
 }
 
-// dbus-send --session --type=method_call --print-reply --dest=com.deepin.linglong.AppManager
-// /com/deepin/linglong/JobManager com.deepin.linglong.JobManager.Start string:"org.deepin.demo"
 void JobManager::Start(const QString &jobId)
 {
     if (jobId.isNull() || jobId.isEmpty()) {

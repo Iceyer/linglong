@@ -1,11 +1,12 @@
 set(LL_SYSTEM_HELPER_SOURCES
     # cmake-format: sortable
+    ../module/package/info.cpp
+    ../module/package/info.h
+    ../module/package/ref.h
+    ../module/runtime/oci.h
     ../module/util/json.h
     ../module/util/serialize/serialize.h
-    ../module/package/info.cpp
-    ../module/package/ref.h
-    ../module/package/info.h
-    ../module/runtime/oci.h
+    ../module/util/sysinfo.cpp
     main.cpp
     privilege/privilege_install_portal.cpp
     privilege/privilege_install_portal.h
@@ -18,6 +19,7 @@ qt5_add_dbus_adaptor(
   ../module/dbus_ipc/org.deepin.linglong.SystemHelper.xml
   system_helper.h
   linglong::system::helper::SystemHelper
+  dbus_gen_system_helper_adaptor
 )
 
 set(LINK_LIBS

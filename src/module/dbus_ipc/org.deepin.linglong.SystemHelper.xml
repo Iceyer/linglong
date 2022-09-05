@@ -13,6 +13,6 @@
             <arg name="refs" type="s" direction="in"/>
             <arg name="options" type="a{sv}" direction="in"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap"/>
-    </method>
+        </method>
     </interface>
 </node>

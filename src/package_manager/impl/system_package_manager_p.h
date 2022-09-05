@@ -181,7 +181,7 @@ private:
 
     bool noDBusMode = false;
 
-    repo::OSTreeRepo ostree;
+    repo::OSTreeRepo ostreeRepo;
     repo::RepoClient repoClient;
 
 public:

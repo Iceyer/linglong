@@ -11,10 +11,12 @@
 #include <QCoreApplication>
 
 #include "service/impl/register_meta_type.h"
-#include "packagemanageradaptor.h"
-#include "jobmanageradaptor.h"
 #include "module/util/log_handler.h"
 #include "module/repo/repo.h"
+#include "module/dbus_ipc/dbus_package_manager_common.h"
+
+#include "dbus_gen_package_manager_adaptor.h"
+#include "dbus_gen_job_manager_adaptor.h"
 
 using namespace linglong;
 
@@ -30,7 +32,7 @@ int main(int argc, char *argv[])
     linglong::repo::registerAllMetaType();
 
     QDBusConnection dbus = QDBusConnection::systemBus();
-    if (!dbus.registerService("org.deepin.linglong.PackageManager")) {
+    if (!dbus.registerService(DBusPackageManagerServiceName)) {
         qCritical() << "service exist" << dbus.lastError();
         return -1;
     }
@@ -38,8 +40,8 @@ int main(int argc, char *argv[])
     PackageManagerAdaptor packageManagerAdaptor(service::SystemPackageManager::instance());
     JobManagerAdaptor jma(JobManager::instance());
 
-    dbus.registerObject("/org/deepin/linglong/PackageManager", service::SystemPackageManager::instance());
-    dbus.registerObject("/com/deepin/linglong/JobManager", JobManager::instance());
+    dbus.registerObject(DBusPackageManagerPath, service::SystemPackageManager::instance());
+    dbus.registerObject(DBusPackageManagerJobManagerPath, JobManager::instance());
 
     return QCoreApplication::exec();
 }

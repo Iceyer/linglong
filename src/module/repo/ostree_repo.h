@@ -81,6 +81,9 @@ public:
 
     package::Ref latestOfRef(const QString &appId, const QString &appVersion) override;
 
+Q_SIGNALS:
+    void taskProgressChange(const QString &id, quint32 progress, const QString &message);
+
 private:
     QScopedPointer<OSTreeRepoPrivate> dd_ptr;
     Q_DECLARE_PRIVATE_D(qGetPtrHelper(dd_ptr), OSTreeRepo)

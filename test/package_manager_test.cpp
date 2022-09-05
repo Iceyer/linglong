@@ -20,7 +20,7 @@
 #include "src/service/impl/param_option.h"
 #include "src/service/impl/reply.h"
 #include "package_manager.h"
-#include "system_package_manager.h"
+#include "dbus_gen_package_manager_interface.h"
 
 /*!
  * start service

@@ -13,21 +13,24 @@
 #include <QCommandLineOption>
 #include <QMap>
 
-#include "cmd/command_helper.h"
+#include "dbus_gen_job_interface.h"
+#include "dbus_gen_package_manager_interface.h"
+#include "package_manager.h"
 #include "module/package/package.h"
 #include "module/util/package_manager_param.h"
-#include "service/impl/register_meta_type.h"
-#include "service/impl/package_manager.h"
-#include "package_manager/impl/system_package_manager.h"
-#include "package_manager.h"
-#include "system_package_manager.h"
-
+#include "module/dbus_ipc/dbus_package_manager_common.h"
 #include "module/runtime/runtime.h"
-#include "package_manager/impl/app_status.h"
 #include "module/util/xdg.h"
 #include "module/util/env.h"
 #include "module/util/log_handler.h"
 #include "module/util/sysinfo.h"
+#include "package_manager/impl/system_package_manager.h"
+#include "package_manager/impl/app_status.h"
+#include "service/impl/register_meta_type.h"
+#include "service/impl/package_manager.h"
+
+#include "cmd/command_helper.h"
+#include "cli.h"
 
 /**
  * @brief 注册QT对象类型
@@ -195,8 +198,8 @@ int main(int argc, char **argv)
     ComDeepinLinglongPackageManagerInterface appManager(
         "com.deepin.linglong.AppManager", "/com/deepin/linglong/PackageManager", QDBusConnection::sessionBus());
 
-    OrgDeepinLinglongPackageManagerInterface sysPackageManager(
-        "org.deepin.linglong.PackageManager", "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
+    OrgDeepinLinglongPackageManagerInterface sysPackageManager(DBusPackageManagerServiceName, DBusPackageManagerPath,
+                                                               QDBusConnection::systemBus());
 
     checkAndStartService(appManager);
     QMap<QString, std::function<int(QCommandLineParser & parser)>> subcommandMap = {

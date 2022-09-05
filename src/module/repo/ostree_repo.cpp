@@ -15,6 +15,7 @@
 #include "ostree_repo.h"
 
 #include <QProcess>
+#include <QThread>
 #include <QDir>
 #include <QHttpPart>
 #include <utility>
@@ -28,6 +29,86 @@
 #include "module/util/config/config.h"
 #include "module/util/semver.h"
 #include "module/util/httpclient.h"
+
+static void progressCallback(OstreeAsyncProgress *progress, gpointer user_data)
+{
+    linglong::repo::OSTreeRepo *ostreeRepo = reinterpret_cast<linglong::repo::OSTreeRepo *>(user_data);
+
+    qCritical() << "progressCallback" << QThread::currentThread() << QThread::currentThreadId() << getpid();
+
+    gboolean scanning;
+    g_autofree char *status = nullptr;
+    guint fetched;
+    guint fetchedDeltaParts;
+    guint fetchedDeltaPartFallbacks;
+    guint metadataFetched;
+    guint outstandingFetches;
+    guint outstandingMetadataFetches;
+    guint outstandingWrites;
+    guint requested;
+    guint scannedMetadata;
+    guint totalDeltaParts;
+    guint totalDeltaPartFallbacks;
+    guint64 bytesTransferred;
+    guint64 fetchedDeltaPartSize;
+    guint64 startTime;
+    guint64 totalDeltaPartSize;
+    g_autoptr(GVariant) outstandingFetchVar = nullptr;
+
+    // ignore extra data when initialization
+    outstandingFetchVar = ostree_async_progress_get_variant(progress, "outstanding-fetches");
+    if (nullptr == outstandingFetchVar) {
+        qDebug() << "ignore extra outstanding-fetches data" << outstandingFetchVar;
+        return;
+    }
+
+    // clang-format off
+    ostree_async_progress_get(
+        progress,
+        "bytes-transferred", "t", &bytesTransferred,
+        "fetched", "u", &fetched,
+        "fetched-delta-fallbacks", "u", &fetchedDeltaPartFallbacks,
+        "fetched-delta-parts", "u", &fetchedDeltaParts,
+        "fetched-delta-part-size", "t", &fetchedDeltaPartSize,
+        "metadata-fetched", "u", &metadataFetched,
+        "outstanding-fetches", "u", &outstandingFetches,
+        "outstanding-metadata-fetches", "u", &outstandingMetadataFetches,
+        "outstanding-writes", "u", &outstandingWrites,
+        "requested", "u", &requested,
+        "start-time", "t", &startTime,
+        "status", "s", &status,
+        "scanning", "u", &scanning,
+        "scanned-metadata", "u", &scannedMetadata,
+        "total-delta-parts", "u", &totalDeltaParts,
+        "total-delta-fallbacks", "u", &totalDeltaPartFallbacks,
+        "total-delta-part-size", "t", &totalDeltaPartSize,
+        NULL);
+    // clang-format on
+
+    Q_EMIT ostreeRepo->taskProgressChange("", fetched * 100 / requested, "");
+
+    //    qDebug() << "-------------";
+    //    qDebug() << QThread::currentThread() << QThread::currentThreadId() << getpid();
+    //    qDebug() << "outstandingFetches" << outstandingFetches;
+    //    qDebug() << "outstandingMetadataFetches" << outstandingMetadataFetches;
+    //    qDebug() << "outstandingWrites" << outstandingWrites;
+    //    qDebug() << "scanning" << scanning;
+    //    qDebug() << "scannedMetadata" << scannedMetadata;
+    //    qDebug() << "fetchedDeltaParts" << fetchedDeltaParts;
+    //    qDebug() << "totalDeltaParts" << totalDeltaParts;
+    //    qDebug() << "fetchedDeltaPartFallbacks" << fetchedDeltaPartFallbacks;
+    //    qDebug() << "totalDeltaPartFallbacks" << totalDeltaPartFallbacks;
+    //    qDebug() << "fetchedDeltaPartSize" << fetchedDeltaPartSize;
+    //    qDebug() << "totalDeltaPartSize" << totalDeltaPartSize;
+    //    qDebug() << "bytesTransferred" << bytesTransferred;
+    //    qDebug() << "fetched" << fetched;
+    //    qDebug() << "metadataFetched" << metadataFetched;
+    //    qDebug() << "requested" << requested;
+    //    qDebug() << "startTime" << startTime;
+    //    qDebug() << "status" << status;
+    //    qDebug() << "-------------";
+    return;
+}
 
 namespace linglong {
 namespace repo {
@@ -247,12 +328,16 @@ private:
         return {QString::fromLatin1(commitID), NoError()};
     }
 
-    // TODO: support multi refs?
+    //!
+    //! \param ref is an ostree ref without remote name, like: org.deepin.Runtime/1.1.1.3/x86_64
+    //! \return
     util::Error pull(const QString &ref)
     {
+        // TODO: should support multi refs?
         GError *gErr = nullptr;
-        // OstreeAsyncProgress *progress;
+        OstreeAsyncProgress *progress;
         // GCancellable *cancellable;
+        remoteRepoName = "repo";
         auto repoNameStr = remoteRepoName.toStdString();
         auto refStr = ref.toStdString();
         auto refsSize = 1;
@@ -265,7 +350,10 @@ private:
         GVariantBuilder builder;
         g_variant_builder_init(&builder, G_VARIANT_TYPE("a{sv}"));
 
-        // g_variant_builder_add(&builder, "{s@v}", "override-url",g_variant_new_string(remote_name_or_baseurl));
+        //        g_variant_builder_add(&builder, "{s@v}", "override-url",
+        //        g_variant_new_variant(g_variant_new_string(repoUrl)));
+        //        g_variant_builder_add(&builder, "{s@v}", "override-remote-name",
+        //                              g_variant_new_variant(g_variant_new_string("repo")));
 
         g_variant_builder_add(&builder, "{s@v}", "gpg-verify", g_variant_new_variant(g_variant_new_boolean(false)));
         g_variant_builder_add(&builder, "{s@v}", "gpg-verify-summary",
@@ -279,9 +367,21 @@ private:
 
         auto options = g_variant_ref_sink(g_variant_builder_end(&builder));
 
-        if (!ostree_repo_pull_with_options(repoPtr, repoNameStr.c_str(), options, nullptr, nullptr, &gErr)) {
+        progress = ostree_async_progress_new_and_connect(progressCallback, q_ptr);
+
+        qDebug() << "pull from" << repoNameStr.c_str() << refs[0];
+        // repo name must not be empty
+        Q_ASSERT(!repoNameStr.empty());
+        if (!ostree_repo_pull_with_options(repoPtr, repoNameStr.c_str(), options, progress, nullptr, &gErr)) {
             qCritical() << "ostree_repo_pull_with_options failed" << QString::fromStdString(std::string(gErr->message));
         }
+
+        if (progress) {
+            qDebug() << "ostree_repo_pull_with_options end" << progress;
+            progressCallback(progress, q_ptr);
+            g_object_unref(progress);
+        }
+
         return NoError();
     }
 
@@ -473,8 +573,10 @@ linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
 {
     Q_D(OSTreeRepo);
 
+    auto refStr = ref.toString();
+
     // Fixme: remote name maybe not repo and there should support multiple remote
-    return WrapError(d->ostreeRun({"pull", "repo", "--mirror", ref.toString()}));
+    return WrapError(d->pull(refStr));
 }
 
 linglong::util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)

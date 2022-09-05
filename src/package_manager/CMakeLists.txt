@@ -45,6 +45,7 @@ set(LL_SYSTEM_SERVICE_SOURCES
     impl/app_status.cpp
     impl/appinfo_cache.cpp
     impl/job.cpp
+    impl/job.h
     impl/job_manager.cpp
     impl/package_manager_flatpak_impl.cpp
     impl/system_package_manager.cpp
@@ -56,26 +57,29 @@ qt5_add_dbus_adaptor(
   ../module/dbus_ipc/org.deepin.linglong.PackageManager.xml
   impl/system_package_manager.h
   linglong::service::SystemPackageManager
+  dbus_gen_package_manager_adaptor
 )
 
 qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES
-  ../module/dbus_ipc/com.deepin.linglong.JobManager.xml
+  ../module/dbus_ipc/org.deepin.linglong.JobManager.xml
   impl/job_manager.h
   JobManager
+  dbus_gen_job_manager_adaptor
 )
 
 qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES
-  ../module/dbus_ipc/com.deepin.linglong.Job.xml
+  ../module/dbus_ipc/org.deepin.linglong.Job.xml
   impl/job.h
   Job
+  dbus_gen_job_adaptor
 )
 
 qt5_add_dbus_interface(
-    LL_SYSTEM_SERVICE_SOURCES
-    ../module/dbus_ipc/org.deepin.linglong.SystemHelper.xml
-    dbus_system_helper
+  LL_SYSTEM_SERVICE_SOURCES
+  ../module/dbus_ipc/org.deepin.linglong.SystemHelper.xml
+  dbus_gen_system_helper_interface
 )
 
 message(STATUS "current CPU ARCH is: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
@@ -97,12 +101,12 @@ install(TARGETS ll-package-manager RUNTIME DESTINATION bin)
 
 install(FILES misc/org.deepin.linglong.PackageManager.conf
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/dbus-1/system.d
-        )
+)
 
 install(FILES misc/systemd/org.deepin.linglong.PackageManager.service
         DESTINATION /lib/systemd/system
-        )
+)
 
 install(FILES misc/org.deepin.linglong.PackageManager.service
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/dbus-1/system-services
-        )
+)

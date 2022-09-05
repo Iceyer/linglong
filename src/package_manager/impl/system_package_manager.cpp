@@ -8,10 +8,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// todo: 该头文件必须放在QDBus前，否则会报错
+// todo: 该头文件必须放在 QDBus 前，否则会报错
 #include "module/repo/ostree_repohelper.h"
 
 #include "system_package_manager.h"
+#include "system_package_manager_p.h"
 
 #include <pwd.h>
 #include <sys/types.h>
@@ -22,15 +23,17 @@
 #include <QJsonArray>
 #include <QDBusConnectionInterface>
 
-#include "app_status.h"
-#include "appinfo_cache.h"
+#include "dbus_gen_system_helper_interface.h"
 #include "module/util/httpclient.h"
 #include "module/util/sysinfo.h"
 #include "module/util/runner.h"
-#include "system_package_manager_p.h"
-
-#include "dbus_system_helper.h"
 #include "module/dbus_ipc/dbus_system_helper_common.h"
+
+#include "app_status.h"
+#include "appinfo_cache.h"
+#include "job.h"
+#include "job_manager.h"
+#include "service_dbus_common.h"
 
 namespace linglong {
 namespace service {
@@ -39,7 +42,7 @@ SystemPackageManagerPrivate::SystemPackageManagerPrivate(SystemPackageManager *p
     , kAppInstallPath(linglong::util::getLinglongRootPath() + "/layers/")
     , kLocalRepoPath(linglong::util::getLinglongRootPath())
     , kRemoteRepoName("repo")
-    , ostree(kLocalRepoPath)
+    , ostreeRepo(kLocalRepoPath)
     , q_ptr(parent)
 {
     // 如果没有config.json拷贝一份到${LINGLONG_ROOT}
@@ -721,7 +724,7 @@ Reply SystemPackageManagerPrivate::Install(const InstallParamOption &installPara
 
     // process portal after install
     {
-        OrgDeepinLinglongSystemHelperInterface systemHelperInterface(SystemHelperDBusName, SystemHelperDBusPath,
+        OrgDeepinLinglongSystemHelperInterface systemHelperInterface(SystemHelperDBusServiceName, SystemHelperDBusPath,
                                                                      QDBusConnection::systemBus());
         auto installPath = savePath;
         qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath, ref.toLocalFullRef();
@@ -938,8 +941,8 @@ Reply SystemPackageManagerPrivate::Uninstall(const UninstallParamOption &paramOp
         // process portal before uninstall
         {
             auto packageRootPath = installPath + "/" + arch;
-            OrgDeepinLinglongSystemHelperInterface systemHelperInterface(SystemHelperDBusName, SystemHelperDBusPath,
-                                                                         QDBusConnection::systemBus());
+            OrgDeepinLinglongSystemHelperInterface systemHelperInterface(
+                SystemHelperDBusServiceName, SystemHelperDBusPath, QDBusConnection::systemBus());
             qDebug() << "call systemHelperInterface.RuinInstallPortal" << packageRootPath << ref.toLocalFullRef();
             QDBusReply<void> reply = systemHelperInterface.RuinInstallPortal(packageRootPath, ref.toString(), {});
             if (!reply.isValid()) {
@@ -1179,10 +1182,22 @@ Reply SystemPackageManager::GetDownloadStatus(const ParamOption &paramOption, in
     return d->GetDownloadStatus(paramOption, type);
 }
 
+inline package::Ref toRef(const InstallParamOption &installOption)
+{
+    QString appId = installOption.appId.trimmed();
+    QString arch = installOption.arch.trimmed().toLower();
+    QString version = installOption.version.trimmed();
+    QString channel = installOption.channel.trimmed();
+    QString module = installOption.appModule.trimmed();
+
+    package::Ref ref("", channel, appId, version, arch, module);
+
+    return ref;
+}
+
 Reply SystemPackageManager::Install(const InstallParamOption &installParamOption)
 {
     Q_D(SystemPackageManager);
-
     Reply reply;
     QString appId = installParamOption.appId.trimmed();
     if (appId.isEmpty()) {
@@ -1190,7 +1205,6 @@ Reply SystemPackageManager::Install(const InstallParamOption &installParamOption
         reply.code = STATUS_CODE(kUserInputParamErr);
         return reply;
     }
-
     if ("flatpak" == installParamOption.repoPoint) {
         return PACKAGEMANAGER_FLATPAK_IMPL->Install(installParamOption);
     }

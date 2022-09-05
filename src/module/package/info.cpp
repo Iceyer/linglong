@@ -9,6 +9,8 @@
  */
 
 #include "info.h"
+#include "ref.h"
+#include "module/util/sysinfo.h"
 
 namespace linglong {
 namespace package {
@@ -75,6 +77,21 @@ Ref parseId(const QString &id)
 Ref::Ref(const QString &id)
 {
     *this = parseId(id);
+}
+
+void Ref::autoFill()
+{
+    if (arch.isEmpty()) {
+        arch = util::hostArch();
+    }
+
+    if (channel.isEmpty()) {
+        channel = "linglong";
+    }
+
+    if (module.isEmpty()) {
+        module = "runtime";
+    }
 }
 
 } // namespace package

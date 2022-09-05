@@ -12,11 +12,11 @@
 #include <QCoreApplication>
 #include <QDBusConnection>
 
+#include "module/dbus_ipc/dbus_system_helper_common.h"
+#include "dbus_gen_system_helper_adaptor.h"
+
 #include "system_helper.h"
 #include "privilege/privilege_install_portal.h"
-
-#include "module/dbus_ipc/dbus_system_helper_common.h"
-#include "systemhelperadaptor.h"
 
 int main(int argc, char *argv[])
 {
@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
     SystemHelperAdaptor systemHelperAdaptor(&systemHelper);
 
     QDBusConnection dbus = QDBusConnection::systemBus();
-    if (!dbus.registerService(linglong::SystemHelperDBusName)) {
+    if (!dbus.registerService(linglong::SystemHelperDBusServiceName)) {
         qCritical() << "registerService failed" << dbus.lastError();
         return -1;
     }

@@ -1,6 +1,6 @@
 find_package(CURL REQUIRED)
 find_package(PkgConfig REQUIRED)
-# QT sqlite支持
+# QT sqlite 支持
 find_package(
   Qt5
   COMPONENTS Concurrent Sql
@@ -40,6 +40,7 @@ set(LL_SERVICE_SOURCES
     ../module/util/xdg.cpp
     ../package_manager/impl/app_status.cpp
     ../package_manager/impl/appinfo_cache.cpp
+    ../package_manager/impl/service_dbus_common.h
     impl/package_manager.cpp
     impl/param_option.h
     impl/reply.h
@@ -86,9 +87,10 @@ install(FILES data/ll-cli
 )
 
 set(PERMISSION
-    data/linglong/hostdir.json
+    # cmake-format: sortable
     data/linglong/calendar.json
     data/linglong/camera.json
+    data/linglong/hostdir.json
     data/linglong/mic.json
     data/linglong/screenshot.json
     data/linglong/userdir.json

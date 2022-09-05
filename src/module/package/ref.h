@@ -52,6 +52,7 @@ public:
         , arch(arch)
         , module(module)
     {
+        autoFill();
     }
 
     QString toString() const
@@ -76,6 +77,7 @@ public:
     QString module;
 
 private:
+    void autoFill();
     // TODO: now is app/runtime
     QString classify;
 };
