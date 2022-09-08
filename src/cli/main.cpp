@@ -192,13 +192,13 @@ int main(int argc, char **argv)
     QStringList args = parser.positionalArguments();
     QString command = args.isEmpty() ? QString() : args.first();
 
-    ComDeepinLinglongPackageManagerInterface packageManager(
+    ComDeepinLinglongPackageManagerInterface appManager(
         "com.deepin.linglong.AppManager", "/com/deepin/linglong/PackageManager", QDBusConnection::sessionBus());
 
     OrgDeepinLinglongPackageManagerInterface sysPackageManager(
         "org.deepin.linglong.PackageManager", "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
 
-    checkAndStartService(packageManager);
+    checkAndStartService(appManager);
     QMap<QString, std::function<int(QCommandLineParser & parser)>> subcommandMap = {
         {"run", // 启动玲珑应用
          [&](QCommandLineParser &parser) -> int {
@@ -307,7 +307,7 @@ int main(int argc, char **argv)
                  return 0;
              }
 
-             QDBusPendingReply<linglong::service::Reply> dbusReply = packageManager.Start(paramOption);
+             QDBusPendingReply<linglong::service::Reply> dbusReply = appManager.Start(paramOption);
              dbusReply.waitForFinished();
              reply = dbusReply.value();
              if (reply.code != 0) {
@@ -360,7 +360,7 @@ int main(int argc, char **argv)
              //      p.env = envList.join(",");
              //  }
 
-             auto dbusReply = packageManager.Exec(p);
+             auto dbusReply = appManager.Exec(p);
              auto reply = dbusReply.value();
              if (reply.code != STATUS_CODE(kSuccess)) {
                  qCritical().noquote() << "message:" << reply.message << ", errcode:" << reply.code;
@@ -402,7 +402,7 @@ int main(int argc, char **argv)
              parser.process(app);
 
              auto outputFormat = parser.value(optOutputFormat);
-             auto replyString = packageManager.ListContainer().value().result;
+             auto replyString = appManager.ListContainer().value().result;
 
              ContainerList containerList;
              auto doc = QJsonDocument::fromJson(replyString.toUtf8(), nullptr);
@@ -431,7 +431,7 @@ int main(int argc, char **argv)
                  return -1;
              }
              // TODO: show kill result
-             QDBusPendingReply<linglong::service::Reply> dbusReply = packageManager.Stop(containerId);
+             QDBusPendingReply<linglong::service::Reply> dbusReply = appManager.Stop(containerId);
              dbusReply.waitForFinished();
              linglong::service::Reply reply = dbusReply.value();
              if (reply.code != STATUS_CODE(kErrorPkgKillSuccess)) {
