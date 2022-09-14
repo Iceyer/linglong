@@ -10,18 +10,15 @@
 
 // todo: 该头文件必须放在 QDBus 前，否则会报错
 #include "module/repo/ostree_repohelper.h"
+#include <pwd.h>
 
 #include "system_package_manager.h"
 #include "system_package_manager_p.h"
-
-#include <pwd.h>
-#include <sys/types.h>
 
 #include <QDebug>
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QJsonArray>
-#include <QDBusConnectionInterface>
 
 #include "dbus_gen_system_helper_interface.h"
 #include "module/util/httpclient.h"
@@ -36,7 +33,45 @@
 #include "service_dbus_common.h"
 
 namespace linglong {
-namespace service {
+namespace package_manager {
+
+namespace {
+const char *const KeyInstallJobId = "jobId";
+const char *const KeyInstallJobRef = "ref";
+const char *const KeyInstallJobStageProgressBegin = "stageBeginPercent";
+const char *const KeyInstallJobStageProgressEnd = "stageEndPercent";
+} // namespace
+
+package::Ref toRef(const InstallParamOption &installOption)
+{
+    QString appId = installOption.appId.trimmed();
+    QString arch = installOption.arch.trimmed().toLower();
+    QString version = installOption.version.trimmed();
+    QString channel = installOption.channel.trimmed();
+    QString module = installOption.appModule.trimmed();
+
+    package::Ref ref("", channel, appId, version, arch, module);
+
+    return ref;
+}
+
+std::unique_ptr<package::AppMetaInfo> takeLatestApp(const QString &appId, package::AppMetaInfoList &appList)
+{
+    int latestIndex = 0;
+    QString curVersion = linglong::util::APP_MIN_VERSION;
+
+    for (int index = 0; index < appList.size(); ++index) {
+        auto item = appList.at(index);
+        linglong::util::AppVersion dstVersion(curVersion);
+        linglong::util::AppVersion iterVersion(item->version);
+        if (appId == item->appId && iterVersion.isBigThan(dstVersion)) {
+            curVersion = item->version;
+            latestIndex = index;
+        }
+    }
+    return std::unique_ptr<package::AppMetaInfo>(appList.takeAt(latestIndex).data());
+}
+
 SystemPackageManagerPrivate::SystemPackageManagerPrivate(SystemPackageManager *parent)
     : sysLinglongInstalltions(linglong::util::getLinglongRootPath() + "/entries/share")
     , kAppInstallPath(linglong::util::getLinglongRootPath() + "/layers/")
@@ -47,6 +82,35 @@ SystemPackageManagerPrivate::SystemPackageManagerPrivate(SystemPackageManager *p
 {
     // 如果没有config.json拷贝一份到${LINGLONG_ROOT}
     linglong::util::copyConfig();
+
+    q_ptr->connect(&ostreeRepo, &repo::OSTreeRepo::pullProgressChanged, q_ptr, [=](const QVariantMap &extraData) {
+        auto jobId = extraData[KeyInstallJobId].toString();
+        auto ref = extraData[KeyInstallJobRef].toString();
+
+        auto stageProgressBegin = extraData[KeyInstallJobStageProgressBegin].toInt();
+        auto stageProgressEnd = extraData[KeyInstallJobStageProgressEnd].toInt();
+
+        auto bytesTransferred = extraData["bytesTransferred"].toULongLong();
+        auto fetched = extraData["fetched"].toUInt();
+        auto requested = extraData["requested"].toUInt();
+        //                       auto startTime = extraData["startTime"].toULongLong();
+        auto elapsedTime = extraData["elapsedTime"].toULongLong();
+        auto status = extraData["status"].toString();
+        elapsedTime += 1;
+
+        auto averageRate = (elapsedTime == 0) ? 0 : bytesTransferred / elapsedTime;
+        auto rate = averageRate;
+        auto remaining = (fetched == 0) ? 0 : requested * elapsedTime / fetched;
+
+        auto stageProgress = fetched * 100 / requested;
+        auto progress = stageProgressBegin + stageProgress * (stageProgressEnd - stageProgressBegin) / 100;
+        auto job = JobManager::instance()->job(jobId);
+        if (job) {
+            job->setProgress(progress, rate, averageRate, remaining, ref);
+        } else {
+            qWarning() << "can not find job" << job;
+        }
+    });
 }
 
 /*
@@ -569,9 +633,133 @@ void SystemPackageManagerPrivate::delAppConfig(const QString &appId, const QStri
 }
 
 /*!
+ * install progress from 0 to 100;
+ *  stage: install package: 20 or 50 or 90, if now need install runtime, take 80 of the hole progress
+ *         install_runtime: 0 or 30, if no need, is zero
+ *         install_base: 0 or 40 percent, in deepin, this stage always skip
+ *         post_install: fix 10 percent
+ *         TODO: the first 3 stage could calc dynamic between 0~90
+ * @param installParamOption
+ * @param job
+ * @return
+ */
+util::Error SystemPackageManagerPrivate::install(const InstallParamOption &installParamOption, Job *job)
+{
+    QString userName = linglong::util::getUserName();
+    if (noDBusMode) {
+        userName = "deepin-linglong";
+    }
+    util::Error result(NoError());
+    package::Ref ref = toRef(installParamOption);
+
+    std::unique_ptr<package::AppMetaInfo> latestMetaInfo;
+    std::tie(result, latestMetaInfo) = getLatestPackageMetaInfo(ref);
+
+    package::Ref targetRef = latestMetaInfo->ref();
+    package::Ref runtimeRef(latestMetaInfo->runtime);
+    package::Ref baseRef = getRuntimeBaseRef(runtimeRef);
+
+    auto needInstallRuntime = !isUserRuntimeInstalled(userName, runtimeRef);
+    auto needInstallBase = !isUserBaseInstalled(userName, baseRef);
+
+    // calc stage progress
+    auto stagePackageProgressBegin = 0;
+    auto stagePackageProgressEnd = 20;
+    auto stageRuntimeProgressBegin = 20;
+    auto stageRuntimeProgressEnd = 50;
+    auto stageBaseProgressBegin = 50;
+    auto stageBaseProgressEnd = 90;
+
+    if (!needInstallBase) {
+        stagePackageProgressEnd = 40;
+        stageRuntimeProgressBegin = 40;
+        stageRuntimeProgressEnd = 90;
+        if (!needInstallRuntime) {
+            stagePackageProgressEnd = 90;
+        }
+    } else {
+        // TODO: do not care now
+    }
+
+    QVariantMap extraData;
+    extraData[KeyInstallJobId] = job->id();
+    extraData[KeyInstallJobRef] = targetRef.toString();
+
+    auto installPath = ostreeRepo.rootOfLayer(targetRef);
+    qDebug() << "check package" << targetRef.toString() << "is installed";
+    if (!isUserAppInstalled(userName, targetRef)) {
+        extraData[KeyInstallJobStageProgressBegin] = stagePackageProgressBegin;
+        extraData[KeyInstallJobStageProgressEnd] = stagePackageProgressEnd;
+        ostreeRepo.pull(targetRef, extraData);
+        ostreeRepo.checkout(targetRef, "", installPath);
+    } else {
+        qDebug() << "package" << targetRef.toString() << "installed";
+        job->setProgress(100, 0, "package has installed");
+        job->setFinish(0, QString("install %1 success").arg(targetRef.toLocalFullRef()));
+        return NoError();
+    }
+
+    auto runtimeInstallPath = ostreeRepo.rootOfLayer(runtimeRef);
+    qDebug() << "check runtime" << runtimeRef.toString() << "is installed";
+    if (needInstallRuntime) {
+        // install runtime
+        extraData[KeyInstallJobStageProgressBegin] = stageRuntimeProgressBegin;
+        extraData[KeyInstallJobStageProgressEnd] = stageRuntimeProgressEnd;
+        ostreeRepo.pull(runtimeRef, extraData);
+        ostreeRepo.checkout(runtimeRef, "", runtimeInstallPath);
+    } else {
+        job->setProgress(stageRuntimeProgressEnd, "runtime " + runtimeRef.toString() + " installed");
+    }
+
+    qDebug() << "check base" << baseRef.toString() << "is installed";
+    auto baseInstallPath = ostreeRepo.rootOfLayer(baseRef);
+    if (needInstallBase) {
+        // install base
+        extraData[KeyInstallJobStageProgressBegin] = stageBaseProgressBegin;
+        extraData[KeyInstallJobStageProgressEnd] = stageBaseProgressEnd;
+        ostreeRepo.pull(baseRef, extraData);
+        ostreeRepo.checkout(runtimeRef, "", baseInstallPath);
+    } else {
+        job->setProgress(stageBaseProgressEnd, "base ready");
+    }
+
+    job->setProgress(92, 10, "export files");
+    // export files
+    result = exportFiles(targetRef);
+    if (!result.success()) {
+        return WrapError(result, -2, "export files failed");
+    }
+    job->setProgress(95, 5, "export files...");
+
+    // process install portal
+    OrgDeepinLinglongSystemHelperInterface systemHelperInterface(SystemHelperDBusServiceName, SystemHelperDBusPath,
+                                                                 QDBusConnection::systemBus());
+
+    job->setProgress(98, 2, "process post install portal...");
+    qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath << ref.toLocalFullRef();
+    QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toString(), {});
+    if (!reply.isValid()) {
+        qCritical() << "process post install portal failed:" << reply.error();
+    }
+
+    // update database
+    job->setProgress(99, 1, "update package database...");
+    latestMetaInfo->kind = "app";
+    auto ret = linglong::util::insertAppRecord(latestMetaInfo.get(), "user", userName);
+    if (0 != ret) {
+        return NewError(ret, "insertAppRecord failed");
+    }
+    job->setProgress(100, 0, "update database finish");
+
+    job->setFinish(0, QString("install %1 success").arg(targetRef.toLocalFullRef()));
+    return NoError();
+}
+
+/*!
  * 在线安装软件包
  * @param installParamOption
  */
+
 Reply SystemPackageManagerPrivate::Install(const InstallParamOption &installParamOption)
 {
     Reply reply;
@@ -640,6 +828,14 @@ Reply SystemPackageManagerPrivate::Install(const InstallParamOption &installPara
     }
 
     // 判断对应版本的应用是否已安装
+    if (isUserAppInstalled("", ref)) {
+        reply.code = STATUS_CODE(kPkgAlreadyInstalled);
+        reply.message = appInfo->appId + ", version: " + appInfo->version + " already installed";
+        qCritical() << reply.message;
+        appState.insert(appId + "/" + version + "/" + arch, reply);
+        return reply;
+    }
+
     if (linglong::util::getAppInstalledStatus(appInfo->appId, appInfo->version, "", channel, appModule, "")) {
         reply.code = STATUS_CODE(kPkgAlreadyInstalled);
         reply.message = appInfo->appId + ", version: " + appInfo->version + " already installed";
@@ -1014,6 +1210,21 @@ Reply SystemPackageManagerPrivate::Uninstall(const UninstallParamOption &paramOp
     return reply;
 }
 
+bool SystemPackageManagerPrivate::isUserAppInstalled(const QString &userName, const package::Ref &ref)
+{
+    return util::getAppInstalledStatus(ref.appId, ref.version, ref.arch, ref.channel, ref.module, userName);
+}
+
+bool SystemPackageManagerPrivate::isUserRuntimeInstalled(const QString &userName, const package::Ref &ref)
+{
+    return util::getAppInstalledStatus(ref.appId, ref.version, ref.arch, ref.channel, ref.module, userName);
+}
+
+bool SystemPackageManagerPrivate::isUserBaseInstalled(const QString &userName, const package::Ref &ref)
+{
+    return linglong::util::isDeepinSysProduct();
+}
+
 Reply SystemPackageManagerPrivate::Update(const ParamOption &paramOption)
 {
     Reply reply;
@@ -1143,6 +1354,86 @@ Reply SystemPackageManagerPrivate::Update(const ParamOption &paramOption)
     return reply;
 }
 
+package::Ref SystemPackageManagerPrivate::getRuntimeBaseRef(const package::Ref &ref)
+{
+    return package::Ref(QString());
+}
+
+std::tuple<util::Error, std::unique_ptr<package::AppMetaInfo>>
+SystemPackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref)
+{
+    package::Ref latestRef("");
+    std::unique_ptr<package::AppMetaInfo> latestMetaInfo(nullptr);
+    Reply reply;
+    QString appData = "";
+
+    // 安装不查缓存
+    auto ret = getAppInfofromServer(ref.appId, ref.version, ref.arch, appData, reply.message);
+    if (!ret) {
+        return {NewError(STATUS_CODE(kPkgInstallFailed), ""), std::move(latestMetaInfo)};
+    }
+
+    qDebug() << "appData from server" << appData;
+
+    linglong::package::AppMetaInfoList appList;
+    ret = loadAppInfo(appData, appList, reply.message);
+    if (!ret || appList.size() < 1) {
+        reply.message = "app:" + ref.appId + ", version:" + ref.version + " not found in repo";
+        reply.code = STATUS_CODE(kPkgInstallFailed);
+        return {NewError(reply.code, reply.message), std::move(latestMetaInfo)};
+    }
+
+    // 查找最高版本，多版本场景安装应用appId要求完全匹配
+    latestMetaInfo = takeLatestApp(ref.appId, appList);
+
+    // fix: 当前服务端不支持按channel查询，返回的结果是默认channel，需要刷新channel/module
+    latestMetaInfo->channel = ref.channel;
+    latestMetaInfo->module = ref.module;
+    qDebug() << "latestMetaInfo" << latestMetaInfo->appId << latestMetaInfo->version << latestMetaInfo->runtime;
+
+    // 不支持模糊安装
+    if (ref.appId != latestMetaInfo->appId) {
+        reply.message = "app:" + ref.appId + ", version:" + ref.version + " not found in repo";
+        reply.code = STATUS_CODE(kPkgInstallFailed);
+        return {NewError(reply.code, reply.message), std::move(latestMetaInfo)};
+    }
+
+    return {NoError(), std::move(latestMetaInfo)};
+}
+
+util::Error SystemPackageManagerPrivate::exportFiles(const package::Ref &ref)
+{
+    // 链接应用配置文件到系统配置目录
+    addAppConfig(ref.appId, ref.version, ref.arch);
+
+    // 更新desktop database
+    auto retRunner = linglong::runner::Runner("update-desktop-database", {sysLinglongInstalltions + "/applications/"},
+                                              1000 * 60 * 1);
+    if (!retRunner) {
+        qWarning() << "warning: update desktop database of " + sysLinglongInstalltions + "/applications/ failed!";
+    }
+
+    // 更新mime type database
+    if (linglong::util::dirExists(sysLinglongInstalltions + "/mime/packages")) {
+        auto retUpdateMime =
+            linglong::runner::Runner("update-mime-database", {sysLinglongInstalltions + "/mime/"}, 1000 * 60 * 1);
+        if (!retUpdateMime) {
+            qWarning() << "warning: update mime type database of " + sysLinglongInstalltions + "/mime/ failed!";
+        }
+    }
+
+    // 更新 glib-2.0/schemas
+    if (linglong::util::dirExists(sysLinglongInstalltions + "/glib-2.0/schemas")) {
+        auto retUpdateSchemas = linglong::runner::Runner(
+            "glib-compile-schemas", {sysLinglongInstalltions + "/glib-2.0/schemas"}, 1000 * 60 * 1);
+        if (!retUpdateSchemas) {
+            qWarning() << "warning: update schemas of " + sysLinglongInstalltions + "/glib-2.0/schemas failed!";
+        }
+    }
+
+    return NoError();
+}
+
 QString SystemPackageManagerPrivate::getUserName(uid_t uid)
 {
     struct passwd *user;
@@ -1258,36 +1549,17 @@ Reply SystemPackageManager::GetDownloadStatus(const ParamOption &paramOption, in
     return d->GetDownloadStatus(paramOption, type);
 }
 
-inline package::Ref toRef(const InstallParamOption &installOption)
-{
-    QString appId = installOption.appId.trimmed();
-    QString arch = installOption.arch.trimmed().toLower();
-    QString version = installOption.version.trimmed();
-    QString channel = installOption.channel.trimmed();
-    QString module = installOption.appModule.trimmed();
-
-    package::Ref ref("", channel, appId, version, arch, module);
-
-    return ref;
-}
-
-Reply SystemPackageManager::Install(const InstallParamOption &installParamOption)
+QString SystemPackageManager::Install(const InstallParamOption &installParamOption)
 {
     Q_D(SystemPackageManager);
-    Reply reply;
-    QString appId = installParamOption.appId.trimmed();
-    if (appId.isEmpty()) {
-        reply.message = "appId input err";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        return reply;
-    }
-    if ("flatpak" == installParamOption.repoPoint) {
-        return PACKAGEMANAGER_FLATPAK_IMPL->Install(installParamOption);
-    }
-    QFuture<void> future = QtConcurrent::run(pool.data(), [=]() { d->Install(installParamOption); });
-    reply.code = STATUS_CODE(kPkgInstalling);
-    reply.message = installParamOption.appId + " is installing";
-    return reply;
+    auto ref = toRef(installParamOption);
+
+    auto job = JobManager::instance()->createJob([=](Job *job) {
+        qDebug() << "install job start";
+        d->install(installParamOption, job);
+    });
+
+    return job->path();
 }
 
 Reply SystemPackageManager::Uninstall(const UninstallParamOption &paramOption)
@@ -1351,5 +1623,5 @@ void SystemPackageManager::setNoDBusMode(bool enable)
     qInfo() << "setNoDBusMode enable:" << enable;
 }
 
-} // namespace service
+} // namespace package_manager
 } // namespace linglong

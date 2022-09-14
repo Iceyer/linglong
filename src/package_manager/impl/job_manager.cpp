@@ -18,6 +18,10 @@
 
 #include "job_manager.h"
 #include "job.h"
+#include "service_dbus_common.h"
+
+namespace linglong {
+namespace package_manager {
 
 class JobManagerPrivate
 {
@@ -32,17 +36,41 @@ public:
     JobManager *q_ptr = nullptr;
 };
 
-JobManager::JobManager() = default;
+JobManager::JobManager()
+    : dd_ptr(new JobManagerPrivate(this))
+{
+}
 
 JobManager::~JobManager() = default;
 
-Job *JobManager::CreateJob(std::function<void(Job *)> f)
+Job *JobManager::createJob(std::function<void(Job *)> f)
 {
+    Q_D(JobManager);
     auto jobId = QUuid::createUuid().toString(QUuid::Id128);
     auto jobPath = QLatin1String(linglong::DBusPackageManagerJobPath) + "/List/" + jobId;
-    auto jr = new Job(f, this);
-    jr->id = jobPath;
-    return jr;
+    auto job = new Job(jobId, jobPath, f, this);
+
+    d->jobs[jobId] = job;
+
+    connect(job, &Job::Finish, this, [=]() {
+        qDebug() << "unregisterObject" << job->id() << job;
+        // delay unregister object path;
+        QTimer::singleShot(5 * 1000, [=]() {
+            targetConnection().unregisterObject(job->path());
+            d->jobs.remove(jobId);
+        });
+    });
+
+    qDebug() << "registerObject" << job->id() << job << QThread::currentThread();
+    targetConnection().registerObject(job->path(), job, QDBusConnection::ExportScriptableContents);
+
+    QTimer::singleShot(50, [=]() {
+        job->setProgress(0, "install job start");
+        qDebug() << "job startWorker";
+        job->startWorker();
+    });
+
+    return job;
 }
 
 void JobManager::Start(const QString &jobId)
@@ -154,3 +182,12 @@ QStringList JobManager::List()
 {
     return OSTREE_REPO_HELPER->getOstreeJobList();
 }
+
+Job *JobManager::job(const QString &jobId)
+{
+    Q_D(JobManager);
+    return d->jobs[jobId];
+}
+
+} // namespace package_manager
+} // namespace linglong

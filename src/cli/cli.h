@@ -26,10 +26,12 @@ class Cli : public QObject
     Q_OBJECT
 
 public Q_SLOTS:
-    void onJobProgressChange(quint32);
+    void onJobProgressChanged(quint32 progress, quint64 rate, quint64 averageRate, qint64 remaining,
+                              const QString &message);
+    void onFinish(quint32,const QString &);
 };
 
-}
-}
+} // namespace cli
+} // namespace linglong
 
 #endif // LINGLONG_SRC_CLI_CLI_H_

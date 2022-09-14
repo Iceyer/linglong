@@ -11,9 +11,8 @@
         </method>
         <method name="Install">
             <arg name="installParamOption" type="(ssssss)" direction="in"/>
-            <arg name="reply" type="(is)" direction="out"/>
+            <arg name="reply" type="s" direction="out"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="linglong::service::InstallParamOption"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="linglong::service::Reply"/>
         </method>
         <method name="Uninstall">
             <arg name="paramOption" type="(ssssssbb)" direction="in"/>

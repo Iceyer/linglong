@@ -16,7 +16,9 @@
 #include "module/util/sysinfo.h"
 
 namespace linglong {
-namespace service {
+namespace package_manager {
+
+class Job;
 class SystemPackageManager;
 class SystemPackageManagerPrivate : public QObject
 {
@@ -25,7 +27,19 @@ public:
     explicit SystemPackageManagerPrivate(SystemPackageManager *parent);
     ~SystemPackageManagerPrivate() override = default;
 
+    bool isUserAppInstalled(const QString &userName, const package::Ref &ref);
+    bool isUserRuntimeInstalled(const QString &userName, const package::Ref &ref);
+    bool isUserBaseInstalled(const QString &userName, const package::Ref &ref);
+
+    std::tuple<util::Error, std::unique_ptr<package::AppMetaInfo>> getLatestPackageMetaInfo(const package::Ref &ref);
+
+    package::Ref getRuntimeBaseRef(const package::Ref &ref);
+
+    util::Error exportFiles(const package::Ref &ref);
+
 private:
+    util::Error install(const InstallParamOption &installParamOption, Job *job);
+
     Reply Install(const InstallParamOption &installParamOption);
     Reply Uninstall(const UninstallParamOption &paramOption);
     QueryReply Query(const QueryParamOption &paramOption);
@@ -188,5 +202,5 @@ public:
     SystemPackageManager *const q_ptr;
     Q_DECLARE_PUBLIC(SystemPackageManager);
 };
-} // namespace service
+} // namespace package_manager
 } // namespace linglong

@@ -69,6 +69,19 @@ public:
         msgMetaList.push_back(msgMeta);
     };
 
+    Error(const char *file, int line, const char *func, int code, const QString &msg, const Error &base)
+        : errorCode(code)
+        , msgMeta(MessageMeta {
+              .file = file,
+              .line = line,
+              .func = func,
+              .message = msg,
+          })
+        , msgMetaList(base.msgMetaList)
+    {
+        msgMetaList.push_back(msgMeta);
+    };
+
     bool success() const { return 0 == errorCode; }
 
     int code() const { return errorCode; }

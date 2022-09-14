@@ -15,6 +15,7 @@
 #include <QScopedPointer>
 #include <QPointer>
 #include <QMap>
+#include <QLoggingCategory>
 
 #include "module/repo/repo.h"
 #include "module/package/package.h"
@@ -39,8 +40,8 @@ public:
 
     explicit OSTreeRepo(const QString &path);
     explicit OSTreeRepo(const QString &localRepoPath, const QString &remoteEndpoint, const QString &remoteRepoName);
-
     ~OSTreeRepo() override;
+
     linglong::util::Error init(const QString &repoMode);
 
     linglong::util::Error remoteAdd(const QString &repoName, const QString &repoUrl);
@@ -63,9 +64,12 @@ public:
 
     linglong::util::Error pull(const package::Ref &ref, bool force) override;
 
+    linglong::util::Error pull(const package::Ref &ref, const QVariantMap &extraData);
+
     linglong::util::Error pullAll(const package::Ref &ref, bool force);
 
-    linglong::util::Error checkout(const package::Ref &ref, const QString &subPath, const QString &target);
+    linglong::util::Error checkout(const package::Ref &ref, const QString &subPath, const QString &target,
+                                   const QStringList &args = {});
 
     linglong::util::Error removeRef(const package::Ref &ref);
 
@@ -82,7 +86,7 @@ public:
     package::Ref latestOfRef(const QString &appId, const QString &appVersion) override;
 
 Q_SIGNALS:
-    void taskProgressChange(const QString &id, quint32 progress, const QString &message);
+    void pullProgressChanged(const QVariantMap &extraData);
 
 private:
     QScopedPointer<OSTreeRepoPrivate> dd_ptr;
@@ -144,5 +148,7 @@ class UploadTaskResponse : public JsonSerialize
 
 Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::repo, UploadTaskRequest)
 Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::repo, UploadTaskResponse)
+
+Q_DECLARE_LOGGING_CATEGORY(repoProgress)
 
 #endif // LINGLONG_SRC_MODULE_REPO_OSTREE_H_

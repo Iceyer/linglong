@@ -495,50 +495,21 @@ int main(int argc, char **argv)
 
              linglong::service::Reply reply;
              qInfo().noquote() << "install" << args.at(1) << ", please wait a few minutes...";
-             if (!parser.isSet(optNoDbus)) {
-                 QDBusPendingReply<linglong::service::Reply> dbusReply = sysPackageManager.Install(installParamOption);
-                 dbusReply.waitForFinished();
-                 reply = dbusReply.value();
-                 if ("flatpak" != repoType) {
-                     QThread::sleep(1);
-                     // 查询一次进度
-                     dbusReply = sysPackageManager.GetDownloadStatus(installParamOption, 0);
-                     dbusReply.waitForFinished();
-                     reply = dbusReply.value();
-                     bool disProgress = false;
-                     // 隐藏光标
-                     std::cout << "\033[?25l";
-                     while (reply.code == STATUS_CODE(kPkgInstalling)) {
-                         std::cout << "\r\33[K" << reply.message.toStdString();
-                         std::cout.flush();
-                         QThread::sleep(1);
-                         dbusReply = sysPackageManager.GetDownloadStatus(installParamOption, 0);
-                         dbusReply.waitForFinished();
-                         reply = dbusReply.value();
-                         disProgress = true;
-                     }
-                     // 显示光标
-                     std::cout << "\033[?25h";
-                     if (disProgress) {
-                         std::cout << std::endl;
-                     }
-                 }
-                 if (reply.code != STATUS_CODE(kPkgInstallSuccess)) {
-                     if (reply.message.isEmpty()) {
-                         reply.message = "unknown err";
-                         reply.code = -1;
-                     }
-                     qCritical().noquote() << "message:" << reply.message << ", errcode:" << reply.code;
-                     return -1;
-                 } else {
-                     qInfo().noquote() << "message:" << reply.message;
-                 }
-             } else {
-                 SYSTEM_MANAGER_HELPER->setNoDBusMode(true);
-                 reply = SYSTEM_MANAGER_HELPER->Install(installParamOption);
-                 SYSTEM_MANAGER_HELPER->pool->waitForDone(-1);
-                 qInfo().noquote() << "install " << installParamOption.appId << " done";
-             }
+
+             QDBusPendingReply<QString> dbusReply = sysPackageManager.Install(installParamOption);
+             dbusReply.waitForFinished();
+             QString jobPath = dbusReply.value();
+
+             QScopedPointer<linglong::cli::Cli> cli(new linglong::cli::Cli);
+             QScopedPointer<QDBusInterface> jobInterface(new QDBusInterface(DBusPackageManagerServiceName, jobPath,
+                                                                            DBusPackageManagerJobInterface,
+                                                                            QDBusConnection::systemBus(), nullptr));
+             QObject::connect(jobInterface.data(), SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)),
+                              cli.data(), SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
+             QObject::connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), cli.data(),
+                              SLOT(onFinish(quint32, QString)));
+             app.exec();
+
              return 0;
          }},
         {"update", // 更新玲珑包

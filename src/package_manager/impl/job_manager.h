@@ -18,6 +18,9 @@
 #include "module/util/singleton.h"
 #include "module/runtime/container.h"
 
+namespace linglong {
+namespace package_manager {
+
 class Job;
 class JobManagerPrivate;
 class JobManager
@@ -27,23 +30,25 @@ class JobManager
 {
     Q_OBJECT
     Q_CLASSINFO("D-Bus Interface", "org.deepin.linglong.JobManager")
-
-    friend class linglong::util::Singleton<JobManager>;
+public Q_SLOTS:
+    Q_SCRIPTABLE QStringList List();
+    Q_SCRIPTABLE void Start(const QString &jobId);
+    Q_SCRIPTABLE void Stop(const QString &jobId);
+    Q_SCRIPTABLE void Cancel(const QString &jobId);
 
 public:
-    Job *CreateJob(std::function<void(Job *)> f);
-
-public Q_SLOTS:
-    QStringList List();
-    void Start(const QString &jobId);
-    void Stop(const QString &jobId);
-    void Cancel(const QString &jobId);
+    Job *createJob(std::function<void(Job *)> f);
+    Job *job(const QString &jobId);
 
 protected:
     JobManager();
     ~JobManager() override;
 
 private:
+    friend class linglong::util::Singleton<JobManager>;
     QScopedPointer<JobManagerPrivate> dd_ptr;
     Q_DECLARE_PRIVATE_D(qGetPtrHelper(dd_ptr), JobManager)
 };
+
+} // namespace package_manager
+} // namespace linglong

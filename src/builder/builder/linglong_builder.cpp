@@ -675,8 +675,10 @@ linglong::util::Error LinglongBuilder::exportBundle(const QString &outputFilePat
         util::ensureDir(exportPath);
 
         repo::OSTreeRepo repo(BuilderConfig::instance()->repoPath());
-        auto ret = repo.checkout(project->refWithModule("runtime"), "", QStringList {exportPath, "runtime"}.join("/"));
-        ret = repo.checkout(project->refWithModule("devel"), "", QStringList {exportPath, "devel"}.join("/"));
+        auto ret = repo.checkout(project->refWithModule("runtime"), "", QStringList {exportPath, "runtime"}.join("/"),
+                                 {"--force-copy"});
+        ret = repo.checkout(project->refWithModule("devel"), "", QStringList {exportPath, "devel"}.join("/"),
+                            {"--force-copy"});
         if (!ret.success()) {
             return NewError(-1, "checkout files failed, you need build first");
         }

@@ -39,6 +39,8 @@ QString ensureUserDir(const QStringList &relativeDirPathComponents);
 
 bool ensureDir(const QString &path);
 
+bool ensureParentDir(const QString &path);
+
 /*!
  * 计算文件hash
  *

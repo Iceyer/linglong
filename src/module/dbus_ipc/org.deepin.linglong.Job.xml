@@ -2,11 +2,21 @@
         "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
 <node>
     <interface name="org.deepin.linglong.Job">
-        <method name="Progress">
-            <arg name="Progress" type="i" direction="out"/>
-        </method>
-        <signal name="ProgressChange">
-            <arg name="Progress" type="i" direction="out"/>
+        <property name="Progress" type="u" access="read"/>
+        <property name="Rate" type="t" access="read"/>
+        <property name="AverageRate" type="t" access="read"/>
+        <property name="Remaining" type="x" access="read"/>
+        <property name="Message" type="s" access="read"/>
+        <signal name="ProgressChanged">
+            <arg name="Progress" type="u" direction="out"/>
+            <arg name="Rate" type="t" direction="out"/>
+            <arg name="AverageRate" type="t" direction="out"/>
+            <arg name="Remaining" type="x" direction="out"/>
+            <arg name="Message" type="s" direction="out"/>
+        </signal>
+        <signal name="Finish">
+            <arg name="Code" type="u" direction="out"/>
+            <arg name="Message" type="s" direction="out"/>
         </signal>
     </interface>
 </node>

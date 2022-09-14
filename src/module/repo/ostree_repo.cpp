@@ -10,7 +10,7 @@
 
 #include <gio/gio.h>
 #include <glib.h>
-#include <ostree-repo.h>
+#include <ostree.h>
 
 #include "ostree_repo.h"
 
@@ -30,14 +30,87 @@
 #include "module/util/semver.h"
 #include "module/util/httpclient.h"
 
-static void progressCallback(OstreeAsyncProgress *progress, gpointer user_data)
+Q_LOGGING_CATEGORY(repoProgress, "repo.progress", QtWarningMsg)
+
+/*!
+ * just support a{sv}, DO NOT parse others with it
+ * @param value
+ * @return
+ */
+QVariant gVariantToQVariant(GVariant *value)
 {
-    linglong::repo::OSTreeRepo *ostreeRepo = reinterpret_cast<linglong::repo::OSTreeRepo *>(user_data);
+    GVariantClass c = g_variant_classify(value);
+    //    qDebug() << "value class is" << c << static_cast<char>(c) << value;
 
-    qCritical() << "progressCallback" << QThread::currentThread() << QThread::currentThreadId() << getpid();
+    switch (c) {
+    case G_VARIANT_CLASS_BOOLEAN:
+        return QVariant((bool)g_variant_get_boolean(value));
+    case G_VARIANT_CLASS_BYTE:
+        return QVariant((char)g_variant_get_byte(value));
+    case G_VARIANT_CLASS_INT16:
+        return QVariant((int)g_variant_get_int16(value));
+    case G_VARIANT_CLASS_UINT16:
+        return QVariant((unsigned int)g_variant_get_uint16(value));
+    case G_VARIANT_CLASS_INT32:
+        return QVariant((int)g_variant_get_int32(value));
+    case G_VARIANT_CLASS_UINT32:
+        return QVariant((unsigned int)g_variant_get_uint32(value));
+    case G_VARIANT_CLASS_INT64:
+        return QVariant((long long)g_variant_get_int64(value));
+    case G_VARIANT_CLASS_UINT64:
+        return QVariant((unsigned long long)g_variant_get_uint64(value));
+    case G_VARIANT_CLASS_DOUBLE:
+        return QVariant(g_variant_get_double(value));
+    case G_VARIANT_CLASS_STRING:
+        return QVariant(g_variant_get_string(value, NULL));
+    case G_VARIANT_CLASS_ARRAY: {
+        gsize arraySize = g_variant_n_children(value);
+        QVariantList list;
+        QVariantMap map;
 
+        bool isMap = false;
+        // check is map, use iter is better
+        for (gsize i = 0; i < arraySize; i++) {
+            GVariant *childValue = g_variant_get_child_value(value, i);
+            GVariantClass childClass = g_variant_classify(childValue);
+            // qDebug() << "childValue class is" << childClass << childValue;
+            // TODO:parse full GVariant
+            if (!isMap && G_VARIANT_CLASS_DICT_ENTRY == childClass) {
+                // qDebug() << "isMap" << isMap;
+                isMap = true;
+            }
+            if (isMap) {
+                gchar *dictEntryKey;
+                GVariant *dictEntryVal;
+                g_variant_get(childValue, "{sv}", &dictEntryKey, &dictEntryVal);
+                // qDebug() << "dictEntryKey dictEntryVal" << dictEntryKey << dictEntryVal;
+                map[dictEntryKey] = gVariantToQVariant(dictEntryVal);
+            } else {
+                qWarning() << "Not support GVariant list for now";
+                // list.append(gVariantToQVariant(childValue));
+            }
+        }
+        if (isMap) {
+            return map;
+        }
+        return list;
+    }
+    case G_VARIANT_CLASS_DICT_ENTRY: {
+        gchar *dictEntryKey;
+        GVariant *dictEntryVal;
+        g_variant_get(value, "{sv}", &dictEntryKey, &dictEntryVal);
+        // qDebug() << "dictEntryKey dictEntryVal" << dictEntryKey << dictEntryVal;
+    }
+    default:
+        return QVariant::Invalid;
+    };
+}
+
+static void progressCallback(OstreeAsyncProgress *progress, gpointer /*user_data*/)
+{
     gboolean scanning;
     g_autofree char *status = nullptr;
+    GVariant *extraDataGVariant = nullptr;
     guint fetched;
     guint fetchedDeltaParts;
     guint fetchedDeltaPartFallbacks;
@@ -58,9 +131,24 @@ static void progressCallback(OstreeAsyncProgress *progress, gpointer user_data)
     // ignore extra data when initialization
     outstandingFetchVar = ostree_async_progress_get_variant(progress, "outstanding-fetches");
     if (nullptr == outstandingFetchVar) {
-        qDebug() << "ignore extra outstanding-fetches data" << outstandingFetchVar;
+        qCDebug(repoProgress) << "ignore extra outstanding-fetches data" << outstandingFetchVar;
         return;
     }
+
+    auto ostreeRepo =
+        reinterpret_cast<linglong::repo::OSTreeRepo *>(g_object_get_data(G_OBJECT(progress), "parent-ptr"));
+    if (nullptr == ostreeRepo) {
+        qCWarning(repoProgress) << "no parent ptr, do not report" << ostreeRepo;
+        return;
+    }
+    extraDataGVariant = reinterpret_cast<GVariant *>(g_object_get_data(G_OBJECT(progress), "extra-data"));
+    if (nullptr == extraDataGVariant) {
+        qCWarning(repoProgress) << "no extra data, do not report" << extraDataGVariant;
+        return;
+    }
+
+    qCDebug(repoProgress) << "thread:" << QThread::currentThread() << "found extra data" << ostreeRepo
+                          << extraDataGVariant;
 
     // clang-format off
     ostree_async_progress_get(
@@ -85,28 +173,45 @@ static void progressCallback(OstreeAsyncProgress *progress, gpointer user_data)
         NULL);
     // clang-format on
 
-    Q_EMIT ostreeRepo->taskProgressChange("", fetched * 100 / requested, "");
+    if (extraDataGVariant) {
+        auto qVariantMap = gVariantToQVariant(extraDataGVariant).toMap();
+        auto elapsedTime = (g_get_monotonic_time() - startTime) / G_USEC_PER_SEC;
+        qVariantMap["bytesTransferred"] = static_cast<qulonglong>(bytesTransferred);
+        qVariantMap["fetched"] = fetched;
+        qVariantMap["requested"] = requested;
+        qVariantMap["startTime"] = static_cast<qulonglong>(startTime);
+        qVariantMap["elapsedTime"] = static_cast<qulonglong>(elapsedTime);
+        qVariantMap["status"] = status;
+        qCDebug(repoProgress) << "send signal pullProgressChanged" << qVariantMap;
+        Q_EMIT ostreeRepo->pullProgressChanged(qVariantMap);
+    }
 
-    //    qDebug() << "-------------";
-    //    qDebug() << QThread::currentThread() << QThread::currentThreadId() << getpid();
-    //    qDebug() << "outstandingFetches" << outstandingFetches;
-    //    qDebug() << "outstandingMetadataFetches" << outstandingMetadataFetches;
-    //    qDebug() << "outstandingWrites" << outstandingWrites;
-    //    qDebug() << "scanning" << scanning;
-    //    qDebug() << "scannedMetadata" << scannedMetadata;
-    //    qDebug() << "fetchedDeltaParts" << fetchedDeltaParts;
-    //    qDebug() << "totalDeltaParts" << totalDeltaParts;
-    //    qDebug() << "fetchedDeltaPartFallbacks" << fetchedDeltaPartFallbacks;
-    //    qDebug() << "totalDeltaPartFallbacks" << totalDeltaPartFallbacks;
-    //    qDebug() << "fetchedDeltaPartSize" << fetchedDeltaPartSize;
-    //    qDebug() << "totalDeltaPartSize" << totalDeltaPartSize;
-    //    qDebug() << "bytesTransferred" << bytesTransferred;
-    //    qDebug() << "fetched" << fetched;
-    //    qDebug() << "metadataFetched" << metadataFetched;
-    //    qDebug() << "requested" << requested;
-    //    qDebug() << "startTime" << startTime;
-    //    qDebug() << "status" << status;
-    //    qDebug() << "-------------";
+    // clang-format off
+    qCDebug(repoProgress)  << "-------------";
+    qCDebug(repoProgress)  << "thread" << QThread::currentThread() << "\n"
+             << "bytesTransferred" << bytesTransferred
+             << "fetched\t" << fetched
+             << "requested\t" << requested
+             << "startTime" << startTime
+             << "\n"
+             << "scanning" << scanning
+             << "scannedMetadata" << scannedMetadata
+             << "metadataFetched" << metadataFetched
+             << "\n"
+             << "outstandingFetches" << outstandingFetches
+             << "outstandingMetadataFetches" << outstandingMetadataFetches
+             << "outstandingWrites" << outstandingWrites
+             << "\n"
+             << "fetchedDeltaParts" << fetchedDeltaParts
+             << "totalDeltaParts" << totalDeltaParts
+             << "fetchedDeltaPartFallbacks" << fetchedDeltaPartFallbacks
+             << "totalDeltaPartFallbacks" << totalDeltaPartFallbacks
+             << "fetchedDeltaPartSize" << fetchedDeltaPartSize
+             << "totalDeltaPartSize" << totalDeltaPartSize
+             << "\n"
+             << "status" << status;
+    qCDebug(repoProgress)  << "-------------";
+    // clang-format on
     return;
 }
 
@@ -124,13 +229,7 @@ typedef QMap<QString, OstreeRepoObject> RepoObjectMap;
 class OSTreeRepoPrivate
 {
 public:
-    ~OSTreeRepoPrivate()
-    {
-        if (repoPtr) {
-            g_object_unref(repoPtr);
-            repoPtr = nullptr;
-        }
-    };
+    ~OSTreeRepoPrivate() {};
 
 private:
     OSTreeRepoPrivate(QString localRepoRootPath, QString remoteEndpoint, QString remoteRepoName, OSTreeRepo *parent)
@@ -146,8 +245,6 @@ private:
             ostreePath = repoRootPath + "/repo";
         }
         qDebug() << "ostree repo path is" << ostreePath;
-
-        repoPtr = openRepo(ostreePath);
     }
 
     linglong::util::Error ostreeRun(const QStringList &args, QByteArray *stdout = nullptr)
@@ -273,13 +370,14 @@ private:
     // FIXME: return {Error, QStringList}
     QStringList traverseCommit(const QString &rev, int maxDepth)
     {
-        GHashTable *hashTable = nullptr;
-        GError *gErr = nullptr;
+        g_autoptr(OstreeRepo) repoPtr = nullptr;
+        g_autoptr(GHashTable) hashTable = nullptr;
+        g_autoptr(GError) gErr = nullptr;
+        std::string revStr = rev.toStdString();
         QStringList objects;
 
-        std::string str = rev.toStdString();
-
-        if (!ostree_repo_traverse_commit(repoPtr, str.c_str(), maxDepth, &hashTable, nullptr, &gErr)) {
+        repoPtr = openRepo(ostreePath);
+        if (!ostree_repo_traverse_commit(repoPtr, revStr.c_str(), maxDepth, &hashTable, nullptr, &gErr)) {
             qCritical() << "ostree_repo_traverse_commit failed"
                         << "rev" << rev << QString::fromStdString(std::string(gErr->message));
             return {};
@@ -318,25 +416,32 @@ private:
 
     std::tuple<QString, util::Error> resolveRev(const QString &ref)
     {
-        GError *gErr = nullptr;
+        g_autoptr(OstreeRepo) repoPtr = nullptr;
+        g_autoptr(GError) gErr = nullptr;
         char *commitID = nullptr;
         std::string refStr = ref.toStdString();
         // FIXME: should free commitID?
+
+        repoPtr = openRepo(ostreePath);
         if (!ostree_repo_resolve_rev(repoPtr, refStr.c_str(), false, &commitID, &gErr)) {
             return {"", WrapError(NewError(gErr->code, gErr->message), "ostree_repo_resolve_rev failed: " + ref)};
         }
         return {QString::fromLatin1(commitID), NoError()};
     }
 
-    //!
+    //! pull file in a new GMainContext
     //! \param ref is an ostree ref without remote name, like: org.deepin.Runtime/1.1.1.3/x86_64
     //! \return
-    util::Error pull(const QString &ref)
+    // TODO: should support multi refs?
+    util::Error pull(const QString &ref, const QVariantMap &extraData)
     {
-        // TODO: should support multi refs?
+        util::Error error;
         GError *gErr = nullptr;
-        OstreeAsyncProgress *progress;
-        // GCancellable *cancellable;
+        GMainContext *main_context = g_main_context_new();
+        g_main_context_push_thread_default(main_context);
+
+        // FIXME: remote name maybe not repo and there should support multiple remote
+        // FIXME: read from config
         remoteRepoName = "repo";
         auto repoNameStr = remoteRepoName.toStdString();
         auto refStr = ref.toStdString();
@@ -350,6 +455,7 @@ private:
         GVariantBuilder builder;
         g_variant_builder_init(&builder, G_VARIANT_TYPE("a{sv}"));
 
+        // TODO: ignore ostree repo config, just read from linglong config.yaml
         //        g_variant_builder_add(&builder, "{s@v}", "override-url",
         //        g_variant_new_variant(g_variant_new_string(repoUrl)));
         //        g_variant_builder_add(&builder, "{s@v}", "override-remote-name",
@@ -358,31 +464,50 @@ private:
         g_variant_builder_add(&builder, "{s@v}", "gpg-verify", g_variant_new_variant(g_variant_new_boolean(false)));
         g_variant_builder_add(&builder, "{s@v}", "gpg-verify-summary",
                               g_variant_new_variant(g_variant_new_boolean(false)));
-
-        auto flags = OSTREE_REPO_PULL_FLAGS_NONE;
+        g_variant_builder_add(&builder, "{s@v}", "inherit-transaction",
+                              g_variant_new_variant(g_variant_new_boolean(false)));
+        auto flags = OSTREE_REPO_PULL_FLAGS_UNTRUSTED;
         g_variant_builder_add(&builder, "{s@v}", "flags", g_variant_new_variant(g_variant_new_int32(flags)));
-
+        g_variant_builder_add(&builder, "{s@v}", "update-frequency", g_variant_new_variant(g_variant_new_uint32(500)));
         g_variant_builder_add(&builder, "{s@v}", "refs",
                               g_variant_new_variant(g_variant_new_strv((const char *const *)refs, -1)));
 
         auto options = g_variant_ref_sink(g_variant_builder_end(&builder));
 
-        progress = ostree_async_progress_new_and_connect(progressCallback, q_ptr);
+        // !!! only gpointer can pass to ostree_async_progress_new_and_connect second args, otherwise it will crash.
+        OstreeAsyncProgress *progress = ostree_async_progress_new_and_connect(progressCallback, nullptr);
+
+        GVariantBuilder extraDataBuilder;
+        g_variant_builder_init(&extraDataBuilder, G_VARIANT_TYPE("a{sv}"));
+        for (auto const &key : extraData.keys()) {
+            auto data = extraData[key].toString().toStdString();
+            g_variant_builder_add(&extraDataBuilder, "{s@v}", key.toStdString().c_str(),
+                                  g_variant_new_variant(g_variant_new_string(data.c_str())));
+        }
+
+        auto extraDataGVariant = g_variant_ref_sink(g_variant_builder_end(&extraDataBuilder));
+        qDebug() << "set extra-data" << extraDataGVariant << gVariantToQVariant(extraDataGVariant);
+        g_object_set_data(G_OBJECT(progress), "extra-data", extraDataGVariant);
+        g_object_set_data(G_OBJECT(progress), "parent-ptr", reinterpret_cast<gpointer>(q_ptr));
 
         qDebug() << "pull from" << repoNameStr.c_str() << refs[0];
         // repo name must not be empty
         Q_ASSERT(!repoNameStr.empty());
-        if (!ostree_repo_pull_with_options(repoPtr, repoNameStr.c_str(), options, progress, nullptr, &gErr)) {
-            qCritical() << "ostree_repo_pull_with_options failed" << QString::fromStdString(std::string(gErr->message));
+        auto ostreeRepoPtr = openRepo(ostreePath);
+        if (!ostree_repo_pull_with_options(ostreeRepoPtr, repoNameStr.c_str(), options, progress, nullptr, &gErr)) {
+            QString errMsg = gErr ? QString(gErr->message) : "unknown error";
+            qCritical() << "ostree_repo_pull_with_options" << remoteRepoName << ref << " failed" << errMsg;
+            error = NewError(-1, errMsg);
         }
 
         if (progress) {
-            qDebug() << "ostree_repo_pull_with_options end" << progress;
-            progressCallback(progress, q_ptr);
-            g_object_unref(progress);
+            ostree_async_progress_finish(progress);
+        }
+        if (main_context) {
+            g_main_context_pop_thread_default(main_context);
         }
 
-        return NoError();
+        return error;
     }
 
     InfoResponse *getRepoInfo(const QString &repoName)
@@ -476,7 +601,6 @@ private:
     QString remoteEndpoint;
     QString remoteRepoName;
 
-    OstreeRepo *repoPtr = nullptr;
     QString ostreePath;
 
     util::HttpRestClient httpClient;
@@ -572,11 +696,21 @@ linglong::util::Error OSTreeRepo::push(const package::Bundle &bundle, bool force
 linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
 {
     Q_D(OSTreeRepo);
-
     auto refStr = ref.toString();
+    return WrapError(d->pull(refStr, {}));
+}
 
-    // Fixme: remote name maybe not repo and there should support multiple remote
-    return WrapError(d->pull(refStr));
+/*!
+ * pull is a sync api, just work for now, need a help progress class
+ * @param ref
+ * @param extraData: send back extraData with signal pullProgressChanged
+ * @return
+ */
+linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, const QVariantMap &extraData)
+{
+    Q_D(OSTreeRepo);
+    auto refStr = ref.toString();
+    return WrapError(d->pull(refStr, extraData));
 }
 
 linglong::util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
@@ -617,13 +751,18 @@ OSTreeRepo::OSTreeRepo(const QString &localRepoPath, const QString &remoteEndpoi
 {
 }
 
-linglong::util::Error OSTreeRepo::checkout(const package::Ref &ref, const QString &subPath, const QString &target)
+linglong::util::Error OSTreeRepo::checkout(const package::Ref &ref, const QString &subPath, const QString &targetPath,
+                                           const QStringList &extraArgs)
 {
-    QStringList args = {"checkout", "--union", "--force-copy"};
+    QStringList args = {"checkout", "--union"};
     if (!subPath.isEmpty()) {
         args.push_back("--subpath=" + subPath);
     }
-    args.append({ref.toString(), target});
+    args.append(extraArgs);
+    args.append({ref.toString(), targetPath});
+
+    util::ensureParentDir(targetPath);
+
     return WrapError(dd_ptr->ostreeRun(args));
 }
 
@@ -779,7 +918,6 @@ std::tuple<linglong::util::Error, QStringList> OSTreeRepo::remoteList()
 
     return {NoError(), remoteList};
 }
-
 OSTreeRepo::~OSTreeRepo() = default;
 
 } // namespace repo

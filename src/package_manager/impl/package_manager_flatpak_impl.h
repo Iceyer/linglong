@@ -20,7 +20,8 @@
 #include "service/impl/param_option.h"
 
 namespace linglong {
-namespace service {
+namespace package_manager {
+
 class PackageManagerFlatpakImpl
     : public PackageManagerInterface
     , public linglong::util::Singleton<PackageManagerFlatpakImpl>
@@ -32,7 +33,7 @@ public:
     Reply Uninstall(const UninstallParamOption &paramOption) override;
     QueryReply Query(const QueryParamOption &paramOption) override;
 };
-} // namespace service
+} // namespace package_manager
 } // namespace linglong
 
-#define PACKAGEMANAGER_FLATPAK_IMPL linglong::service::PackageManagerFlatpakImpl::instance()
+#define PACKAGEMANAGER_FLATPAK_IMPL linglong::package_manager::PackageManagerFlatpakImpl::instance()

@@ -19,7 +19,11 @@
 #include "module/util/result.h"
 
 namespace linglong {
-namespace service {
+
+using namespace service;
+
+namespace package_manager {
+
 class PackageManagerInterface
 {
 public:
@@ -43,5 +47,5 @@ inline Reply PackageManagerInterface::Exec(const ExecParamOption &paramOption)
     return reply;
 }
 
-} // namespace service
+} // namespace package_manager
 } // namespace linglong

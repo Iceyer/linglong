@@ -30,7 +30,8 @@
 #include "module/runtime/container.h"
 
 namespace linglong {
-namespace service {
+namespace package_manager {
+
 class SystemPackageManagerPrivate;
 
 /**
@@ -78,11 +79,9 @@ public Q_SLOTS:
      *
      * @param installParamOption 安装参数
      *
-     * @return Reply dbus方法调用应答 \n
-     *          code:状态码 \n
-     *          message:信息
+     * @return job dbus path
      */
-    Reply Install(const InstallParamOption &installParamOption);
+    QString Install(const InstallParamOption &installParamOption);
 
     /**
      * @brief 卸载软件包
@@ -133,8 +132,8 @@ protected:
     ~SystemPackageManager() override;
 };
 
-} // namespace service
+} // namespace package_manager
 } // namespace linglong
 
 #define POOL_MAX_THREAD 10 ///< 下载、卸载、更新应用线程池最大线程数
-#define SYSTEM_MANAGER_HELPER linglong::service::SystemPackageManager::instance()
+#define SYSTEM_MANAGER_HELPER linglong::package_manager::SystemPackageManager::instance()

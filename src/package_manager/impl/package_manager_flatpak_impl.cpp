@@ -12,7 +12,8 @@
 #include "module/util/runner.h"
 
 namespace linglong {
-namespace service {
+namespace package_manager {
+
 Reply PackageManagerFlatpakImpl::Install(const InstallParamOption &installParamOption)
 {
     Reply reply;

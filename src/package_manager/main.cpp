@@ -37,11 +37,11 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    PackageManagerAdaptor packageManagerAdaptor(service::SystemPackageManager::instance());
-    JobManagerAdaptor jma(JobManager::instance());
+    PackageManagerAdaptor packageManagerAdaptor(package_manager::SystemPackageManager::instance());
+    JobManagerAdaptor jma(package_manager::JobManager::instance());
 
-    dbus.registerObject(DBusPackageManagerPath, service::SystemPackageManager::instance());
-    dbus.registerObject(DBusPackageManagerJobManagerPath, JobManager::instance());
+    dbus.registerObject(DBusPackageManagerPath, package_manager::SystemPackageManager::instance());
+    dbus.registerObject(DBusPackageManagerJobManagerPath, package_manager::JobManager::instance());
 
     return QCoreApplication::exec();
 }

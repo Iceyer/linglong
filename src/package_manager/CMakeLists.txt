@@ -56,7 +56,7 @@ qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES
   ../module/dbus_ipc/org.deepin.linglong.PackageManager.xml
   impl/system_package_manager.h
-  linglong::service::SystemPackageManager
+  linglong::package_manager::SystemPackageManager
   dbus_gen_package_manager_adaptor
 )
 
@@ -64,7 +64,7 @@ qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES
   ../module/dbus_ipc/org.deepin.linglong.JobManager.xml
   impl/job_manager.h
-  JobManager
+  linglong::package_manager::JobManager
   dbus_gen_job_manager_adaptor
 )
 
@@ -72,7 +72,7 @@ qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES
   ../module/dbus_ipc/org.deepin.linglong.Job.xml
   impl/job.h
-  Job
+  linglong::package_manager::Job
   dbus_gen_job_adaptor
 )
 

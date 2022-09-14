@@ -13,13 +13,13 @@
 
 #include <QDBusConnection>
 namespace linglong {
-namespace service {
+namespace package_manager {
 
 inline QDBusConnection targetConnection()
 {
     return QDBusConnection::systemBus();
 }
-} // namespace service
+} // namespace package_manager
 } // namespace linglong
 
 #endif // LINGLONG_SRC_SERVICE_IMPL_SERVICE_DBUS_COMMON_H_
