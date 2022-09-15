@@ -1,5 +1,7 @@
 set(LL_SYSTEM_HELPER_SOURCES
     # cmake-format: sortable
+    ../module/util/file.h
+    ../module/util/file.cpp
     ../module/package/info.cpp
     ../module/package/info.h
     ../module/package/ref.h
@@ -7,6 +9,7 @@ set(LL_SYSTEM_HELPER_SOURCES
     ../module/util/json.h
     ../module/util/serialize/serialize.h
     ../module/util/sysinfo.cpp
+    ../module/util/log_handler.cpp
     main.cpp
     privilege/privilege_install_portal.cpp
     privilege/privilege_install_portal.h
