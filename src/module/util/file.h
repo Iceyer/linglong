@@ -70,16 +70,6 @@ quint64 sizeOfDir(const QString &srcPath);
  */
 QString createProxySocket(const QString &pattern);
 
-/*
- * 从配置文件获取服务器配置参数
- *
- * @param key: 参数名称
- * @param value: 查询结果
- *
- * @return int: 0:成功 其它:失败
- */
-int getLocalConfig(const QString &key, QString &value);
-
 /*!
  * 判断文件是否存在
  * @param path
@@ -436,17 +426,6 @@ QString inline getLinglongRootPath()
         return QString("/persistent/linglong");
     }
     return QString();
-}
-
-/*!
- * 拷贝config.json到安装目录
- */
-void inline copyConfig()
-{
-    if (!fileExists(getLinglongRootPath() + "/config.json") && fileExists("/usr/share/linglong/config.json")) {
-        QFile configFile("/usr/share/linglong/config.json");
-        configFile.copy(getLinglongRootPath() + "/config.json");
-    }
 }
 
 } // namespace util

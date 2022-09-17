@@ -21,6 +21,7 @@
 #include <QJsonArray>
 
 #include "dbus_gen_system_helper_interface.h"
+#include "module/util/config/config.h"
 #include "module/util/httpclient.h"
 #include "module/util/sysinfo.h"
 #include "module/util/runner.h"
@@ -80,9 +81,6 @@ PackageManagerPrivate::PackageManagerPrivate(PackageManager *parent)
     , ostreeRepo(kLocalRepoPath)
     , q_ptr(parent)
 {
-    // 如果没有config.json拷贝一份到${LINGLONG_ROOT}
-    linglong::util::copyConfig();
-
     q_ptr->connect(&ostreeRepo, &repo::OSTreeRepo::pullProgressChanged, q_ptr, [=](const QVariantMap &extraData) {
         auto jobId = extraData[KeyInstallJobId].toString();
         auto ref = extraData[KeyInstallJobRef].toString();
@@ -1470,15 +1468,8 @@ Reply PackageManager::ModifyRepo(const QString &url)
         return reply;
     }
     auto ostreeCfg = d->kLocalRepoPath + "/repo/config";
-    auto serverCfg = d->kLocalRepoPath + "/config.json";
     if (!linglong::util::fileExists(ostreeCfg)) {
         reply.message = ostreeCfg + " no exist";
-        reply.code = STATUS_CODE(kErrorModifyRepoFailed);
-        return reply;
-    }
-
-    if (!linglong::util::fileExists(serverCfg)) {
-        reply.message = serverCfg + " no exist";
         reply.code = STATUS_CODE(kErrorModifyRepoFailed);
         return reply;
     }
@@ -1491,7 +1482,7 @@ Reply PackageManager::ModifyRepo(const QString &url)
     }
 
     // ostree config --repo=/persistent/linglong/repo set "remote \"repo\".url" https://repo-dev.linglong.space/repo/
-    // ostree config文件中节名有""，QSettings会自动转义，不用QSettings直接修改ostree config文件
+    // ostree config 文件中节名有""，QSettings 会自动转义，不用 QSettings 直接修改 ostree config 文件
     auto ret = linglong::runner::Runner(
         "ostree", {"config", "--repo=" + d->kLocalRepoPath + "/repo", "set", "remote \"repo\".url", dstUrl},
         1000 * 60 * 5);
@@ -1502,15 +1493,8 @@ Reply PackageManager::ModifyRepo(const QString &url)
         return reply;
     }
 
-    QJsonObject obj;
-    obj["appDbUrl"] = url;
-    QJsonDocument doc(obj);
-    QFile jsonFile(serverCfg);
-    jsonFile.open(QIODevice::WriteOnly | QIODevice::Text);
-    QTextStream wirteStream(&jsonFile);
-    wirteStream.setCodec("UTF-8");
-    wirteStream << doc.toJson();
-    jsonFile.close();
+    ConfigInstance().repos[kDefaultRepo]->endpoint = url;
+    ConfigInstance().save();
 
     reply.code = STATUS_CODE(kErrorModifyRepoSuccess);
     reply.message = "modify repo url success";

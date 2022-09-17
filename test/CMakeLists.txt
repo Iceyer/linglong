@@ -88,7 +88,7 @@ set(LL_TEST_SOURCES
     module/serialize/qt_yaml.cpp
     module/config/config_test.cpp
     repohelper_test.cpp
-)
+    ../src/module/util/config/config.cpp)
 
 # add qdbus call
 set_source_files_properties(

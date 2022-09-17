@@ -21,7 +21,7 @@ namespace repo {
 std::tuple<util::Error, package::AppMetaInfoList> RepoClient::QueryApps(const package::Ref &ref)
 {
     // TODO: query cache Here
-    QUrl url(ConfigInstance().repoUrl);
+    QUrl url(ConfigInstance().repos[kDefaultRepo]->endpoint);
     url.setPath(url.path() + "apps/fuzzysearchapp");
 
     qDebug() << "query" << url;

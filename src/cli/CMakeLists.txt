@@ -40,7 +40,7 @@ set(LL_CLI_SOURCES
     cli.h
     cmd/command_helper.cpp
     main.cpp
-)
+    ../module/util/config/config.cpp)
 
 set_source_files_properties(
     ../module/dbus_ipc/org.deepin.linglong.AppManager.xml

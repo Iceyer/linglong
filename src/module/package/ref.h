@@ -13,11 +13,10 @@
 
 #include <QString>
 
+#include "module/util/const.h"
+
 namespace linglong {
 namespace package {
-
-const auto kDefaultRepo = "deepin";
-const auto kDefaultChannel = "main";
 
 class Ref
 {

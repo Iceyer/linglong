@@ -1,32 +1,51 @@
-//
-// Created by iceyer on 7/16/2022.
-//
+/*
+* Copyright (c) 2020. Uniontech Software Ltd. All rights reserved.
+*
+* Author:     Iceyer <me@iceyer.net>
+*
+* Maintainer: Iceyer <me@iceyer.net>
+*
+* SPDX-License-Identifier: GPL-3.0-or-later
+*/
 
 #ifndef LINGLONG_SRC_MODULE_UTIL_CONFIG_CONFIG_H_
 #define LINGLONG_SRC_MODULE_UTIL_CONFIG_CONFIG_H_
 
-// yaml/json format config
-
-#include "module/util/file.h"
+#include "module/util/serialize/serialize.h"
 #include "module/util/json.h"
+#include "module/util/const.h"
 
 namespace linglong {
+namespace config {
+
+class Repo : public Serialize
+{
+    Q_OBJECT;
+    Q_SERIALIZE_CONSTRUCTOR(Repo)
+    Q_JSON_PROPERTY(QString, endpoint);
+};
+Q_SERIALIZE_DECLARE_TYPE(Repo)
 
 class Config : public JsonSerialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(Config)
-    Q_JSON_PROPERTY(QString, repoUrl);
-
-    inline static QString path() { return util::getLinglongRootPath() + "/config.json"; }
+    Q_SERIALIZE_PROPERTY(linglong::config::RepoStrMap, repos)
+public:
+    explicit Config(QObject *parent = nullptr);
+    virtual void onPostSerialize() override;
+    void save();
 };
+Q_SERIALIZE_DECLARE_TYPE(Config)
 
-inline Config &ConfigInstance()
-{
-    static QScopedPointer<Config> config(util::loadJSON<Config>(Config::path()));
-    return *config;
-}
+void registerAllMetatype();
+
+} // namespace config
+
+config::Config &ConfigInstance();
 
 } // namespace linglong
+
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::config, Repo)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::config, Config)
 
 #endif // LINGLONG_SRC_MODULE_UTIL_CONFIG_CONFIG_H_

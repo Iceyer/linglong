@@ -46,7 +46,7 @@ set(LL_SERVICE_SOURCES
     impl/reply.h
     main.cpp
     resource/resource.qrc
-)
+    ../module/util/config/config.cpp)
 
 qt5_add_dbus_adaptor(
   LL_SERVICE_SOURCES
@@ -71,7 +71,7 @@ target_link_libraries(ll-service PRIVATE ${LINK_LIBS})
 
 install(TARGETS ll-service RUNTIME DESTINATION bin)
 
-install(FILES misc/config.json DESTINATION ${CMAKE_INSTALL_PREFIX}/share/linglong/)
+install(FILES misc/config.yaml DESTINATION ${CMAKE_INSTALL_PREFIX}/share/linglong/)
 
 install(FILES misc/xdg/org.deepin.linglong.service.desktop
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications

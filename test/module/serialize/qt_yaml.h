@@ -49,9 +49,9 @@ D_SERIALIZE_DECLARE(App)
 } // namespace test
 } // namespace linglong
 
-D_SERIALIZE_REGISTER_TYPE_NM(linglong::test, MountRule)
-D_SERIALIZE_REGISTER_TYPE_NM(linglong::test, Permission)
-D_SERIALIZE_REGISTER_TYPE_NM(linglong::test, App)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::test, MountRule)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::test, Permission)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::test, App)
 
 class TestMount : public JsonSerialize
 {

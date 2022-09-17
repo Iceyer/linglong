@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/">
-        <file>config.json</file>
+        <file>oci_config_template.json</file>
         <file>app.yaml</file>
     </qresource>
 </RCC>

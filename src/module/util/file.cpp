@@ -20,9 +20,6 @@
 namespace linglong {
 namespace util {
 
-// 存储软件包信息服务器配置文件
-const QString serverConfigPath = getLinglongRootPath() + "/config.json";
-
 QString jonsPath(const QStringList &component)
 {
     return QDir::toNativeSeparators(component.join(QDir::separator()));
@@ -79,39 +76,6 @@ QString createProxySocket(const QString &pattern)
     return tmpFile.fileName();
 }
 
-/*
- * 从配置文件获取服务器配置参数
- *
- * @param key: 参数名称
- * @param value: 查询结果
- *
- * @return int: 0:成功 其它:失败
- */
-int getLocalConfig(const QString &key, QString &value)
-{
-    if (!linglong::util::fileExists(serverConfigPath)) {
-        qCritical() << serverConfigPath << " not exist";
-        return STATUS_CODE(kFail);
-    }
-    QFile dbFile(serverConfigPath);
-    dbFile.open(QIODevice::ReadOnly);
-    QString qValue = dbFile.readAll();
-    dbFile.close();
-    QJsonParseError parseJsonErr;
-    QJsonDocument document = QJsonDocument::fromJson(qValue.toUtf8(), &parseJsonErr);
-    if (QJsonParseError::NoError != parseJsonErr.error) {
-        qCritical() << "parse linglong config file err";
-        return STATUS_CODE(kFail);
-    }
-    QJsonObject dataObject = document.object();
-    if (!dataObject.contains(key)) {
-        qWarning() << "key:" << key << " not found in config";
-        return STATUS_CODE(kFail);
-    }
-    value = dataObject[key].toString();
-    return STATUS_CODE(kSuccess);
-}
-
 QStringList getUserInfo()
 {
     auto filePath = util::getUserFile(".linglong/.user.json");
@@ -163,7 +127,7 @@ quint64 sizeOfDir(const QString &srcPath)
             lstat(info.absoluteFilePath().toLocal8Bit(), &symlinkStat);
             size += symlinkStat.st_size;
         } else if (info.isDir()) {
-            // 一个文件夹大小为4K
+            // 一个文件夹大小为 4K
             size += 4 * 1024;
             size += sizeOfDir(QStringList {srcPath, info.fileName()}.join("/"));
         } else {

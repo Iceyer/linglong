@@ -13,15 +13,15 @@
 #include <QtConcurrent/QtConcurrent>
 #include "src/module/util/httpclient.h"
 #include "src/module/util/file.h"
+#include "src/module/util/config/config.h"
 
 TEST(httpclient, test01)
 {
     QStringList userInfo = {"linglong", "linglong"};
 
-    QString configUrl = "";
-    int statusCode = linglong::util::getLocalConfig("appDbUrl", configUrl);
+    QString configUrl = linglong::ConfigInstance().repos[linglong::kDefaultRepo]->endpoint;
 
-    EXPECT_EQ (statusCode, STATUS_CODE(kSuccess));
+    EXPECT_EQ (true, !configUrl.isEmpty());
 
     auto token = G_HTTPCLIENT->getToken(configUrl, userInfo);
     EXPECT_EQ (token.size() > 0, true);

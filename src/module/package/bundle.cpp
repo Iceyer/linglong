@@ -10,6 +10,7 @@
 
 #include "bundle.h"
 #include "bundle_p.h"
+#include "module/util/config/config.h"
 
 #include <curl/curl.h>
 
@@ -222,9 +223,8 @@ linglong::util::Error BundlePrivate::push(const QString &bundleFilePath, const Q
     // 从配置文件获取服务器域名url
     QString configUrl = repoUrl;
     if (configUrl.isEmpty()) {
-        int statusCode = linglong::util::getLocalConfig("appDbUrl", configUrl);
-
-        if (STATUS_CODE(kSuccess) != statusCode) {
+        configUrl = ConfigInstance().repos[kDefaultRepo]->endpoint;
+        if (configUrl.isEmpty()) {
             if (util::dirExists(this->tmpWorkDir)) {
                 util::removeDir(this->tmpWorkDir);
             }

@@ -30,7 +30,7 @@ public:
     Q_SERIALIZE_PROPERTY(QString, source)
     Q_SERIALIZE_PROPERTY(QString, target)
 };
-Q_SERIALIZE_DECLARE_LIST_MAP(FilePortalRule)
+Q_SERIALIZE_DECLARE_TYPE(FilePortalRule)
 
 class PortalRule : public Serialize
 {
@@ -40,7 +40,7 @@ public:
     Q_SERIALIZE_PROPERTY(QStringList, whiteList)
     Q_SERIALIZE_PROPERTY(linglong::system::helper::FilePortalRuleList, fileRuleList)
 };
-Q_SERIALIZE_DECLARE_LIST_MAP(PortalRule)
+Q_SERIALIZE_DECLARE_TYPE(PortalRule)
 
 util::Error rebuildPrivilegeInstallPortal(const QString &repoRoot, const QString &ref, const QVariantMap &options);
 util::Error ruinPrivilegeInstallPortal(const QString &repoRoot, const QString &ref, const QVariantMap &options);
@@ -49,9 +49,7 @@ util::Error ruinPrivilegeInstallPortal(const QString &repoRoot, const QString &r
 } // namespace system
 } // namespace linglong
 
-Q_SERIALIZE_REGISTER_TYPE(linglong::system::helper::FilePortalRule, linglong::system::helper::FilePortalRuleList,
-                          linglong::system::helper::FilePortalRuleStrMap)
-Q_SERIALIZE_REGISTER_TYPE(linglong::system::helper::PortalRule, linglong::system::helper::PortalRuleList,
-                          linglong::system::helper::PortalRuleStrMap)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::system::helper, FilePortalRule)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::system::helper, PortalRule)
 
 #endif // LINGLONG_SRC_SYSTEM_HELPER_PRIVILEGE_PRIVILEGE_INSTALL_PORTAL_H_

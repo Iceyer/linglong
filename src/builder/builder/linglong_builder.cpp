@@ -36,6 +36,7 @@
 #include "module/runtime/app.h"
 #include "cli/cmd/command_helper.h"
 #include "module/util/env.h"
+#include "module/util/config/config.h"
 
 namespace linglong {
 namespace builder {
@@ -255,11 +256,9 @@ linglong::util::Error LinglongBuilder::initRepo()
         }
 
         QString defaultRepoName = "repo";
-        QString configUrl = "";
-
-        int statusCode = linglong::util::getLocalConfig("appDbUrl", configUrl);
-        if (STATUS_CODE(kSuccess) != statusCode) {
-            return NewError() << "call getLocalConfig api failed";
+        QString configUrl = ConfigInstance().repos[kDefaultRepo]->endpoint;
+        if (configUrl.isEmpty()) {
+            return NewError(-1) << "call getLocalConfig api failed";
         }
 
         QString repoUrl = configUrl.endsWith("/") ? configUrl + "repo" : QStringList {configUrl, "repo"}.join("/");
@@ -542,7 +541,7 @@ linglong::util::Error LinglongBuilder::buildFlow(Project *project)
         }
     }
 
-    QFile jsonFile(":/config.json");
+    QFile jsonFile(":/oci_config_template.json");
     jsonFile.open(QIODevice::ReadOnly);
     auto json = QJsonDocument::fromJson(jsonFile.readAll());
 

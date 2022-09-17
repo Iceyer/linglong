@@ -29,7 +29,7 @@ public:
 } // namespace repo
 } // namespace linglong
 
-Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::repo, Pair)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, Pair)
 
 namespace linglong {
 namespace repo {
@@ -48,4 +48,4 @@ class UploadTaskRequest : public JsonSerialize
 } // namespace repo
 } // namespace linglong
 
-Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::repo, UploadTaskRequest)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, UploadTaskRequest)

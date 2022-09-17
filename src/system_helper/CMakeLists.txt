@@ -15,7 +15,7 @@ set(LL_SYSTEM_HELPER_SOURCES
     privilege/privilege_install_portal.h
     system_helper.cpp
     system_helper.h
-)
+    ../module/util/config/config.cpp)
 
 qt5_add_dbus_adaptor(
   LL_SYSTEM_HELPER_SOURCES

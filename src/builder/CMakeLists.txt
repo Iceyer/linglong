@@ -35,7 +35,7 @@ set(LL_BUILDER_SOURCES
     builder/source_fetcher.cpp
     builder/source_fetcher.h
     resource/resource.qrc
-)
+    ../module/util/config/config.cpp)
 
 set(RESOURCES
     # cmake-format: sortable

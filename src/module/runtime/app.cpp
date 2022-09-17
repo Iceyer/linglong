@@ -54,7 +54,7 @@ public:
 
     bool init()
     {
-        QFile jsonFile(":/config.json");
+        QFile jsonFile(":/oci_config_template.json");
         if (!jsonFile.open(QIODevice::ReadOnly)) {
             qCritical() << jsonFile.error() << jsonFile.errorString();
             return false;

@@ -30,8 +30,9 @@
 #include <QtNetwork/QNetworkRequest>
 #include <QtNetwork/QNetworkReply>
 
-#include "module/util/file.h"
 #include "builder/builder/builder_config.h"
+#include "module/util/file.h"
+#include "module/util/config/config.h"
 
 namespace linglong {
 namespace util {
@@ -106,9 +107,8 @@ size_t writeData(void *content, size_t size, size_t nmemb, void *stream)
  */
 bool HttpClient::queryRemoteApp(const QString &pkgName, const QString &pkgVer, const QString &pkgArch, QString &outMsg)
 {
-    QString configUrl = "";
-    int statusCode = linglong::util::getLocalConfig("appDbUrl", configUrl);
-    if (STATUS_CODE(kSuccess) != statusCode) {
+    QString configUrl = ConfigInstance().repos[kDefaultRepo]->endpoint;
+    if (configUrl.isEmpty()) {
         return false;
     }
 

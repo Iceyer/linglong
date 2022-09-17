@@ -512,7 +512,7 @@ private:
 
     InfoResponse *getRepoInfo(const QString &repoName)
     {
-        QUrl url(QString("%1/%2/%3").arg(ConfigInstance().repoUrl, "v1/repo", repoName));
+        QUrl url(QString("%1/%2/%3").arg(ConfigInstance().repos[kDefaultRepo]->endpoint, "v1/repo", repoName));
 
         QNetworkRequest request(url);
 
@@ -524,7 +524,7 @@ private:
 
     std::tuple<QString, util::Error> newUploadTask(const QString &repoName, UploadTaskRequest *req)
     {
-        QUrl url(QString("%1/v1/blob/%2/upload").arg(ConfigInstance().repoUrl, repoName));
+        QUrl url(QString("%1/v1/blob/%2/upload").arg(ConfigInstance().repos[kDefaultRepo]->endpoint, repoName));
         QNetworkRequest request(url);
 
         auto data = QJsonDocument(toVariant(req).toJsonObject()).toJson();
@@ -541,7 +541,8 @@ private:
         util::Error err(NoError());
         QByteArray fileData;
 
-        QUrl url(QString("%1/v1/blob/%2/upload/%3").arg(ConfigInstance().repoUrl, repoName, taskID));
+        QUrl url(
+            QString("%1/v1/blob/%2/upload/%3").arg(ConfigInstance().repos[kDefaultRepo]->endpoint, repoName, taskID));
         QNetworkRequest request(url);
 
         QScopedPointer<QHttpMultiPart> multiPart(new QHttpMultiPart(QHttpMultiPart::FormDataType));
@@ -590,7 +591,8 @@ private:
 
     util::Error cleanUploadTask(const QString &repoName, const QString &taskID)
     {
-        QUrl url(QString("%1/v1/blob/%2/upload/%3").arg(ConfigInstance().repoUrl, repoName, taskID));
+        QUrl url(
+            QString("%1/v1/blob/%2/upload/%3").arg(ConfigInstance().repos[kDefaultRepo]->endpoint, repoName, taskID));
         QNetworkRequest request(url);
         // FIXME: check error
         httpClient.del(request);

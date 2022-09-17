@@ -1,0 +1,4 @@
+repos:
+  # default repo name
+  linglong:
+    endpoint: https://repo.linglong.dev
