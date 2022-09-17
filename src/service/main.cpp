@@ -10,11 +10,15 @@
 
 #include <QCoreApplication>
 
+#include "dbus_gen_app_manager_adaptor.h"
+#include "module/dbus_ipc/dbus_app_manager_common.h"
 #include "module/runtime/app.h"
-#include "impl/register_meta_type.h"
-#include "packagemanageradaptor.h"
 #include "module/runtime/runtime.h"
 #include "module/util/log_handler.h"
+
+#include "impl/register_meta_type.h"
+
+using namespace linglong;
 
 int main(int argc, char *argv[])
 {
@@ -29,19 +33,21 @@ int main(int argc, char *argv[])
     linglong::service::registerAllMetaType();
 
     QDBusConnection dbus = QDBusConnection::sessionBus();
-    if (!dbus.registerService("com.deepin.linglong.AppManager")) {
+    if (!dbus.registerService(AppManagerDBusServiceName)) {
         qCritical() << "service exist" << dbus.lastError();
         return -1;
     }
 
-    PackageManagerAdaptor pma(PACKAGE_MANAGER);
+    AppManagerAdaptor appManagerAdaptor(service::AppManager::instance());
 
-    // TODO(se): 需要进行错误处理
-    dbus.registerObject("/com/deepin/linglong/PackageManager", PACKAGE_MANAGER);
+    if (!dbus.registerObject(AppManagerDBusPath, service::AppManager::instance())) {
+        qCritical() << "path exist" << AppManagerDBusPath << dbus.lastError();
+        return -1;
+    }
 
     app.connect(&app, &QCoreApplication::aboutToQuit, &app, [&] {
-        dbus.unregisterObject("com.deepin.linglong.AppManager");
-        dbus.unregisterService("/com/deepin/linglong/PackageManager");
+        dbus.unregisterObject(AppManagerDBusPath);
+        dbus.unregisterService(AppManagerDBusServiceName);
     });
 
     return QCoreApplication::exec();

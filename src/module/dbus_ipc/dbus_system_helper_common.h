@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022. ${ORGANIZATION_NAME}. All rights reserved.
+ * Copyright (c) 2022. Uniontech Software Ltd. All rights reserved.
  *
  * Author:     Iceyer <me@iceyer.net>
  *
@@ -15,7 +15,7 @@ namespace linglong {
 
 const char *const SystemHelperDBusServiceName = "org.deepin.linglong.SystemHelper";
 const char *const SystemHelperDBusPath = "/org/deepin/linglong/SystemHelper";
-const char *const SystemHelperDBusInterface = "/org/deepin/linglong/SystemHelper";
+const char *const SystemHelperDBusInterface = "org.deepin.linglong.SystemHelper";
 
 } // namespace linglong
 

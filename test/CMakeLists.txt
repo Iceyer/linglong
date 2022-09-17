@@ -83,7 +83,7 @@ set(LL_TEST_SOURCES
     module/util/xdg_test.cpp
     module/serialize/serialize_test.h
     module/serialize/serialize_test.cpp
-    package_manager_test.cpp
+    manager_test.cpp
     module/serialize/qt_json.cpp
     module/serialize/qt_yaml.cpp
     module/config/config_test.cpp
@@ -92,14 +92,14 @@ set(LL_TEST_SOURCES
 
 # add qdbus call
 set_source_files_properties(
-  ../src/module/dbus_ipc/com.deepin.linglong.PackageManager.xml
+    ../src/module/dbus_ipc/org.deepin.linglong.AppManager.xml
   PROPERTIES INCLUDE service/impl/register_meta_type.h
 )
 
 qt5_add_dbus_interface(
   LL_TEST_SOURCES
-  ../src/module/dbus_ipc/com.deepin.linglong.PackageManager.xml
-  package_manager
+  ../src/module/dbus_ipc/org.deepin.linglong.AppManager.xml
+  dbus_gen_app_manager_interface
 )
 
 set_source_files_properties(

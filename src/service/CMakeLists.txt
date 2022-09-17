@@ -41,7 +41,7 @@ set(LL_SERVICE_SOURCES
     ../package_manager/impl/app_status.cpp
     ../package_manager/impl/appinfo_cache.cpp
     ../package_manager/impl/service_dbus_common.h
-    impl/package_manager.cpp
+    impl/app_manager.cpp
     impl/param_option.h
     impl/reply.h
     main.cpp
@@ -50,9 +50,10 @@ set(LL_SERVICE_SOURCES
 
 qt5_add_dbus_adaptor(
   LL_SERVICE_SOURCES
-  ../module/dbus_ipc/com.deepin.linglong.PackageManager.xml
-  impl/package_manager.h
-  linglong::service::PackageManager
+  ../module/dbus_ipc/org.deepin.linglong.AppManager.xml
+  impl/app_manager.h
+  linglong::service::AppManager
+  dbus_gen_app_manager_adaptor
 )
 
 message(STATUS "current CPU ARCH is: ${CMAKE_HOST_SYSTEM_PROCESSOR}")

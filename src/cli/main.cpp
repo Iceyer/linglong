@@ -13,11 +13,12 @@
 #include <QCommandLineOption>
 #include <QMap>
 
+#include "dbus_gen_app_manager_interface.h"
 #include "dbus_gen_job_interface.h"
 #include "dbus_gen_package_manager_interface.h"
-#include "package_manager.h"
 #include "module/package/package.h"
 #include "module/util/package_manager_param.h"
+#include "module/dbus_ipc/dbus_app_manager_common.h"
 #include "module/dbus_ipc/dbus_package_manager_common.h"
 #include "module/runtime/runtime.h"
 #include "module/util/xdg.h"
@@ -27,13 +28,13 @@
 #include "package_manager/impl/system_package_manager.h"
 #include "package_manager/impl/app_status.h"
 #include "service/impl/register_meta_type.h"
-#include "service/impl/package_manager.h"
+#include "service/impl/app_manager.h"
 
 #include "cmd/command_helper.h"
 #include "cli.h"
 
 /**
- * @brief 注册QT对象类型
+ * @brief 注册 QT 对象类型
  *
  */
 static void qJsonRegisterAll()
@@ -44,7 +45,7 @@ static void qJsonRegisterAll()
 }
 
 /**
- * @brief 输出flatpak命令的查询结果
+ * @brief 输出 flatpak 命令的查询结果
  *
  * @param appMetaInfoList 软件包元信息列表
  *
@@ -95,7 +96,7 @@ void doIntOperate(int sig)
 {
     // 显示光标
     std::cout << "\033[?25h" << std::endl;
-    // Fix to 调用jobManager中止下载安装操作
+    // Fix to 调用 jobManager 中止下载安装操作
     exit(0);
 }
 
@@ -141,12 +142,12 @@ void printAppInfo(linglong::package::AppMetaInfoList appMetaInfoList)
 }
 
 /**
- * @brief 检测ll-service dbus服务是否已经启动，未启动则启动
+ * @brief 检测 ll-service dbus 服务是否已经启动，未启动则启动
  *
- * @param packageManager ll-service dbus服务
+ * @param packageManager ll-service dbus 服务
  *
  */
-void checkAndStartService(ComDeepinLinglongPackageManagerInterface &packageManager)
+void checkAndStartService(OrgDeepinLinglongAppManagerInterface &packageManager)
 {
     const auto kStatusActive = "active";
     QDBusReply<QString> status = packageManager.Status();
@@ -181,7 +182,7 @@ int main(int argc, char **argv)
     // 安装消息处理函数
     LOG_HANDLER->installMessageHandler();
 
-    // 注册QT对象类型
+    // 注册 QT 对象类型
     qJsonRegisterAll();
 
     QCommandLineParser parser;
@@ -196,8 +197,8 @@ int main(int argc, char **argv)
     QStringList args = parser.positionalArguments();
     QString command = args.isEmpty() ? QString() : args.first();
 
-    ComDeepinLinglongPackageManagerInterface appManager(
-        "com.deepin.linglong.AppManager", "/com/deepin/linglong/PackageManager", QDBusConnection::sessionBus());
+    OrgDeepinLinglongAppManagerInterface appManager(AppManagerDBusServiceName, AppManagerDBusPath,
+                                                    QDBusConnection::sessionBus());
 
     OrgDeepinLinglongPackageManagerInterface sysPackageManager(DBusPackageManagerServiceName, DBusPackageManagerPath,
                                                                QDBusConnection::systemBus());
@@ -251,7 +252,7 @@ int main(int argc, char **argv)
              // 转化特殊字符
              args = linglong::util::convertSpecialCharacters(args);
 
-             // 移除run appid两个参数 获取 exec 执行参数
+             // 移除 run appid 两个参数 获取 exec 执行参数
              // eg: ll-cli run deepin-music --exec deepin-music /usr/share/music/test.mp3
              // exec = "deepin-music /usr/share/music/test.mp3"
              QString desktopArgs;
@@ -289,7 +290,7 @@ int main(int argc, char **argv)
                  paramOption.appEnv = envList.join(",");
              }
 
-             // 判断是否设置了no-proxy参数
+             // 判断是否设置了 no-proxy 参数
              paramOption.noDbusProxy = parser.isSet(optNoProxy);
              if (!parser.isSet(optNoProxy)) {
                  // FIX to do only deal with session bus
@@ -302,8 +303,8 @@ int main(int argc, char **argv)
              // ll-cli 进沙箱环境
              linglong::service::Reply reply;
              if ("/bin/bash" == parser.value(optExec) || "bash" == parser.value(optExec)) {
-                 reply = PACKAGE_MANAGER->Start(paramOption);
-                 PACKAGE_MANAGER->runPool->waitForDone(-1);
+                 reply = service::AppManager::instance()->Start(paramOption);
+                 service::AppManager::instance()->pool().waitForDone(-1);
                  if (0 != reply.code) {
                      qCritical().noquote() << "message:" << reply.message << ", errcode:" << reply.code;
                      return -1;
@@ -475,7 +476,7 @@ int main(int argc, char **argv)
 
              // 收到中断信号后恢复操作
              signal(SIGINT, doIntOperate);
-             // 设置 24 h超时
+             // 设置 24 h 超时
              sysPackageManager.setTimeout(1000 * 60 * 60 * 24);
              // appId format: org.deepin.calculator/1.2.6 in multi-version
              linglong::service::InstallParamOption installParamOption;
@@ -725,7 +726,7 @@ int main(int argc, char **argv)
                  reply = SYSTEM_MANAGER_HELPER->Query(paramOption);
              } else {
                  QDBusPendingReply<linglong::service::QueryReply> dbusReply = sysPackageManager.Query(paramOption);
-                 // 默认超时时间为25s
+                 // 默认超时时间为 25s
                  dbusReply.waitForFinished();
                  reply = dbusReply.value();
              }

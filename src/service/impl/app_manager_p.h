@@ -16,18 +16,14 @@
 
 namespace linglong {
 namespace service {
-class PackageManager;
-class PackageManagerPrivate
-    : public QObject
+
+class AppManager;
+class AppManagerPrivate : public QObject
 {
     Q_OBJECT
 public:
-    explicit PackageManagerPrivate(PackageManager *parent);
-    ~PackageManagerPrivate() override = default;
-
-private:
-    QMap<QString, QPointer<linglong::runtime::App>> apps;
-    linglong::repo::OSTreeRepo repo;
+    explicit AppManagerPrivate(AppManager *parent);
+    ~AppManagerPrivate() override = default;
 
     /**
      * @brief 查询应用是否正在运行
@@ -40,9 +36,15 @@ private:
      */
     bool isAppRunning(const QString &appId, const QString &version, const QString &arch);
 
-public:
-    PackageManager *const q_ptr;
-    Q_DECLARE_PUBLIC(PackageManager);
+    QMap<QString, QPointer<linglong::runtime::App>> apps;
+
+    linglong::repo::OSTreeRepo repo;
+
+    QScopedPointer<QThreadPool> runPool; ///< 启动应用线程池
+
+    AppManager *const q_ptr;
+    Q_DECLARE_PUBLIC(AppManager);
 };
+
 } // namespace service
 } // namespace linglong
