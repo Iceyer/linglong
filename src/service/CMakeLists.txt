@@ -56,8 +56,6 @@ qt5_add_dbus_adaptor(
   dbus_gen_app_manager_adaptor
 )
 
-message(STATUS "current CPU ARCH is: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
-
 set(LINK_LIBS
     ${LINK_LIBS}
     CURL::libcurl
@@ -73,33 +71,44 @@ target_link_libraries(ll-service PRIVATE ${LINK_LIBS})
 
 install(TARGETS ll-service RUNTIME DESTINATION bin)
 
-install(FILES data/config.json DESTINATION /usr/share/linglong/)
+install(FILES misc/config.json DESTINATION ${CMAKE_INSTALL_PREFIX}/share/linglong/)
 
-install(FILES data/space.linglong.Service.desktop
+install(FILES misc/xdg/org.deepin.linglong.service.desktop
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications
-)
+        )
 
-install(FILES data/space.linglong.Service.desktop
+install(FILES misc/xdg/org.deepin.linglong.service.desktop
         DESTINATION /etc/xdg/autostart
-)
-
-install(FILES data/ll-cli
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/bash-completion/completions
-)
+        )
 
 set(PERMISSION
     # cmake-format: sortable
-    data/linglong/calendar.json
-    data/linglong/camera.json
-    data/linglong/hostdir.json
-    data/linglong/mic.json
-    data/linglong/screenshot.json
-    data/linglong/userdir.json
+    misc/linglong/calendar.json
+    misc/linglong/camera.json
+    misc/linglong/hostdir.json
+    misc/linglong/mic.json
+    misc/linglong/screenshot.json
+    misc/linglong/userdir.json
 )
+
 install(FILES ${PERMISSION}
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/permission/policy/linglong
 )
 
-install(FILES data/deepin-linglong.xml
+install(FILES misc/xdg/linglong.xml
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/mime/packages
+        )
+
+install(FILES ${CMAKE_SOURCE_DIR}/scripts/linglong.sh
+        DESTINATION /etc/profile.d
+        )
+
+install(
+    FILES ${CMAKE_SOURCE_DIR}/scripts/linglong.sh
+    DESTINATION /etc/X11/Xsession.d/
+    RENAME 21linglong
 )
+
+install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/50-linglong
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user-environment-generators/
+        )

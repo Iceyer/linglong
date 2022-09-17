@@ -82,8 +82,6 @@ qt5_add_dbus_interface(
   dbus_gen_system_helper_interface
 )
 
-message(STATUS "current CPU ARCH is: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
-
 set(LINK_LIBS
     ${LINK_LIBS}
     CURL::libcurl

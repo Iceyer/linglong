@@ -74,6 +74,7 @@ include_directories(${linglong_SOURCE_DIR}/src)
 add_subdirectory(src)
 add_subdirectory(test)
 
+message(STATUS "current CPU ARCH is: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
 message(STATUS "output " ${PROJECT_BINARY_DIR})
 message(STATUS "source " ${PROJECT_SOURCE_DIR})
 message(STATUS "install " ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})

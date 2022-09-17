@@ -32,8 +32,8 @@ configure)
                 cp /usr/share/linglong/config.json ${LINGLONG_ROOT}/config.json
         fi
 
-        #daemon-reload for /usr/lib/systemd/user-environment-generators/61-linglong
-        if [ -f /usr/lib/systemd/user-environment-generators/61-linglong ]; then
+        #daemon-reload for /usr/lib/systemd/user-environment-generators/50-linglong
+        if [ -f /usr/lib/systemd/user-environment-generators/50-linglong ]; then
                 systemctl daemon-reload
         fi
 
