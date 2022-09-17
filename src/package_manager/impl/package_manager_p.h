@@ -19,13 +19,13 @@ namespace linglong {
 namespace package_manager {
 
 class Job;
-class SystemPackageManager;
-class SystemPackageManagerPrivate : public QObject
+class PackageManager;
+class PackageManagerPrivate : public QObject
 {
     Q_OBJECT
 public:
-    explicit SystemPackageManagerPrivate(SystemPackageManager *parent);
-    ~SystemPackageManagerPrivate() override = default;
+    explicit PackageManagerPrivate(PackageManager *parent);
+    ~PackageManagerPrivate() override = default;
 
     bool isUserAppInstalled(const QString &userName, const package::Ref &ref);
     bool isUserRuntimeInstalled(const QString &userName, const package::Ref &ref);
@@ -199,8 +199,8 @@ private:
     repo::RepoClient repoClient;
 
 public:
-    SystemPackageManager *const q_ptr;
-    Q_DECLARE_PUBLIC(SystemPackageManager);
+    PackageManager *const q_ptr;
+    Q_DECLARE_PUBLIC(PackageManager);
 };
 } // namespace package_manager
 } // namespace linglong

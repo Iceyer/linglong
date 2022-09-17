@@ -25,7 +25,7 @@
 #include "module/util/env.h"
 #include "module/util/log_handler.h"
 #include "module/util/sysinfo.h"
-#include "package_manager/impl/system_package_manager.h"
+#include "package_manager/impl/package_manager.h"
 #include "package_manager/impl/app_status.h"
 #include "service/impl/register_meta_type.h"
 #include "service/impl/app_manager.h"

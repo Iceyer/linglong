@@ -31,7 +31,7 @@ set(LL_CLI_SOURCES
     ../package_manager/impl/job.cpp
     ../package_manager/impl/job_manager.cpp
     ../package_manager/impl/package_manager_flatpak_impl.cpp
-    ../package_manager/impl/system_package_manager.cpp
+    ../package_manager/impl/package_manager.cpp
     ../service/impl/app_manager.cpp
     ../service/impl/param_option.h
     ../service/impl/reply.h
