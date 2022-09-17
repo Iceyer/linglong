@@ -12,10 +12,22 @@
 
 #include "src/module/package/info.h"
 
+using namespace linglong;
+
 TEST(Moduel_Package, Ref)
 {
-    linglong::package::Ref ref("deepin/channel:app/1.0/la");
-
-    EXPECT_EQ(ref.repo, "deepin");
+    package::Ref ref("repo/channel:app/1.0/x86");
+    EXPECT_EQ(ref.repo, "repo");
     EXPECT_EQ(ref.appId, "app");
+
+    ref = package::Ref("channel:app/1.0/x86");
+    EXPECT_EQ(ref.repo, kDefaultRepo);
+    EXPECT_EQ(ref.appId, "app");
+
+    ref = package::Ref("app/1.0/x86");
+    EXPECT_EQ(ref.repo, kDefaultRepo);
+    EXPECT_EQ(ref.channel, kDefaultChannel);
+    EXPECT_EQ(ref.appId, "app");
+    EXPECT_EQ(ref.version, "1.0");
+    EXPECT_EQ(ref.arch, "x86");
 }

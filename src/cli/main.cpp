@@ -171,7 +171,23 @@ void checkAndStartService(OrgDeepinLinglongAppManagerInterface &packageManager)
         qCritical() << "start ll-service failed";
     }
 }
+void addRefArguments(QCommandLineParser &parser, QList<QCommandLineOption> opts)
+{
+    parser.addPositionalArgument("ref",
+                                 R"MLS00(The full ref is:
+[repo]/[channel]:{id}/[version]/[arch]/[module]
+like:
+"default/main:org.deepin.demo/1.0.0.1/arch/module"
+only package id required，use this for short:
+"main:org.deepin.demo/1.0.0.1" from main channel
+"org.deepin.demo/1.0.0.1" from default channel
+)MLS00",
+                                 "org.deepin.demo");
 
+    for (auto opt : opts) {
+        parser.addOption(opt);
+    }
+}
 using namespace linglong;
 
 int main(int argc, char **argv)
@@ -192,6 +208,16 @@ int main(int argc, char **argv)
 
     parser.addPositionalArgument("subcommand", subCommandList.join("\n"), "subcommand [sub-option]");
 
+    // TODO: change to no-dbus-daemon
+    auto optNoDbus = QCommandLineOption("nodbus", "execute cmd directly, not via dbus(only for root user)", "");
+    optNoDbus.setFlags(QCommandLineOption::HiddenFromHelp);
+    parser.addOption(optNoDbus);
+
+    auto optRepoPoint = QCommandLineOption("repo-point", "app repo type to use", "repo-point", "");
+    // TODO: may not support flatpak from cli, hidden it now.
+    optRepoPoint.setFlags(QCommandLineOption::HiddenFromHelp);
+    parser.addOption(optRepoPoint);
+
     parser.parse(QCoreApplication::arguments());
 
     QStringList args = parser.positionalArguments();
@@ -204,6 +230,13 @@ int main(int argc, char **argv)
                                                                QDBusConnection::systemBus());
 
     checkAndStartService(appManager);
+
+    // some common option
+    auto optChannel = QCommandLineOption("channel", "The channel of package", "linglong", "linglong");
+    parser.addOption(optChannel);
+    auto optModule = QCommandLineOption("module", "The module of package", "binary", "binary");
+    parser.addOption(optModule);
+
     QMap<QString, std::function<int(QCommandLineParser & parser)>> subcommandMap = {
         {"run", // 启动玲珑应用
          [&](QCommandLineParser &parser) -> int {
@@ -212,8 +245,6 @@ int main(int argc, char **argv)
              parser.addPositionalArgument("appId", "application id", "com.deepin.demo");
 
              auto optExec = QCommandLineOption("exec", "run exec", "/bin/bash");
-             auto optRepoPoint = QCommandLineOption("repo-point", "app repo type to use", "repo-point", "");
-             parser.addOption(optRepoPoint);
              parser.addOption(optExec);
 
              auto optNoProxy = QCommandLineOption("no-proxy", "whether to use dbus proxy in box", "");
@@ -450,54 +481,36 @@ int main(int argc, char **argv)
         {"install", // 下载玲珑包
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
-             parser.addPositionalArgument("install", "install an application", "install");
-             parser.addPositionalArgument("appId", "application id", "com.deepin.demo");
-             auto optRepoPoint = QCommandLineOption("repo-point", "app repo type to use", "repo-point", "");
-             parser.addOption(optRepoPoint);
-             auto optNoDbus =
-                 QCommandLineOption("nodbus", "execute cmd directly, not via dbus(only for root user)", "");
-             optNoDbus.setFlags(QCommandLineOption::HiddenFromHelp);
-             parser.addOption(optNoDbus);
-
-             auto optChannel = QCommandLineOption("channel", "the channnel of app", "--channel=linglong", "linglong");
-             parser.addOption(optChannel);
-             auto optModule = QCommandLineOption("module", "the module of app", "--module=runtime", "runtime");
-             parser.addOption(optModule);
-
+             parser.addPositionalArgument("install", "Install a package", "install");
+             addRefArguments(parser, {optChannel, optModule});
              parser.process(app);
 
              args = parser.positionalArguments();
              auto repoType = parser.value(optRepoPoint);
+
              // 参数个数校验
              if (args.size() != 2 || (!repoType.isEmpty() && "flatpak" != repoType)) {
                  parser.showHelp(-1);
-                 return -1;
              }
 
              // 收到中断信号后恢复操作
              signal(SIGINT, doIntOperate);
-             // 设置 24 h 超时
-             sysPackageManager.setTimeout(1000 * 60 * 60 * 24);
-             // appId format: org.deepin.calculator/1.2.6 in multi-version
-             linglong::service::InstallParamOption installParamOption;
-             installParamOption.repoPoint = repoType;
-             // 增加 channel/module
-             installParamOption.channel = parser.value(optChannel);
-             installParamOption.appModule = parser.value(optModule);
-             QStringList appInfoList = args.at(1).split("/");
-             installParamOption.appId = appInfoList.at(0);
-             installParamOption.arch = linglong::util::hostArch();
-             if (appInfoList.size() == 2) {
-                 installParamOption.version = appInfoList.at(1);
-             } else if (appInfoList.size() == 3) {
-                 installParamOption.version = appInfoList.at(1);
-                 installParamOption.arch = appInfoList.at(2);
+
+             auto argRef = args.at(1);
+             package::Ref ref(argRef);
+
+             if (parser.isSet(optChannel)) {
+                 ref.channel = parser.value(optChannel);
+             }
+             if (parser.isSet(optModule)) {
+                 ref.module = parser.value(optModule);
              }
 
-             linglong::service::Reply reply;
-             qInfo().noquote() << "install" << args.at(1) << ", please wait a few minutes...";
+             qInfo().noquote() << "install" << argRef << ", please wait a few minutes...";
 
-             QDBusPendingReply<QString> dbusReply = sysPackageManager.Install(installParamOption);
+             qDebug() << "install spec ref" << ref.toSpecString();
+
+             QDBusPendingReply<QString> dbusReply = sysPackageManager.Install(ref.toSpecString(), {});
              dbusReply.waitForFinished();
              QString jobPath = dbusReply.value();
 
@@ -509,20 +522,14 @@ int main(int argc, char **argv)
                               cli.data(), SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
              QObject::connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), cli.data(),
                               SLOT(onFinish(quint32, QString)));
-             app.exec();
 
-             return 0;
+             return app.exec();
          }},
         {"update", // 更新玲珑包
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
-             parser.addPositionalArgument("update", "update an application", "update");
-             parser.addPositionalArgument("appId", "application id", "com.deepin.demo");
-
-             auto optChannel = QCommandLineOption("channel", "the channnel of app", "--channel=linglong", "linglong");
-             parser.addOption(optChannel);
-             auto optModule = QCommandLineOption("module", "the module of app", "--module=runtime", "runtime");
-             parser.addOption(optModule);
+             parser.addPositionalArgument("update", "Update an application", "update");
+             addRefArguments(parser, {optChannel, optModule});
 
              parser.process(app);
              linglong::service::ParamOption paramOption;
@@ -584,11 +591,10 @@ int main(int argc, char **argv)
         {"query", // 查询玲珑包
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
-             parser.addPositionalArgument("query", "query app info", "query");
-             parser.addPositionalArgument("appId", "application id", "com.deepin.demo");
-             auto optRepoPoint = QCommandLineOption("repo-point", "app repo type to use", "repo-point", "");
-             parser.addOption(optRepoPoint);
-             auto optNoCache = QCommandLineOption("force", "query from server directly, not from cache", "");
+             parser.addPositionalArgument("query", "Query app info", "query");
+             addRefArguments(parser, {});
+
+             auto optNoCache = QCommandLineOption("force", "Query from server directly, not from cache", "");
              parser.addOption(optNoCache);
              parser.process(app);
 
@@ -626,22 +632,14 @@ int main(int argc, char **argv)
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
              parser.addPositionalArgument("uninstall", "uninstall an application", "uninstall");
-             parser.addPositionalArgument("appId", "application id", "com.deepin.demo");
-             auto optRepoPoint = QCommandLineOption("repo-point", "app repo type to use", "repo-point", "");
-             auto optNoDbus =
-                 QCommandLineOption("nodbus", "execute cmd directly, not via dbus(only for root user)", "");
+             addRefArguments(parser, {});
+
              auto optAllVer = QCommandLineOption("all-version", "uninstall all version application", "");
+             parser.addOption(optAllVer);
+
              auto optDelData = QCommandLineOption("delete-data", "delete app data", "");
              optNoDbus.setFlags(QCommandLineOption::HiddenFromHelp);
-             parser.addOption(optNoDbus);
-             parser.addOption(optRepoPoint);
-             parser.addOption(optAllVer);
              parser.addOption(optDelData);
-
-             auto optChannel = QCommandLineOption("channel", "the channnel of app", "--channel=linglong", "linglong");
-             parser.addOption(optChannel);
-             auto optModule = QCommandLineOption("module", "the module of app", "--module=runtime", "runtime");
-             parser.addOption(optModule);
 
              parser.process(app);
 

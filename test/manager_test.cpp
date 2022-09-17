@@ -22,6 +22,7 @@
 #include "service/impl/register_meta_type.h"
 #include "service/impl/param_option.h"
 #include "service/impl/reply.h"
+#include "module/dbus_ipc/dbus_package_manager_common.h"
 
 using namespace linglong;
 
@@ -78,7 +79,7 @@ bool getConnectStatus()
     return connect;
 }
 
-TEST(Package, install01)
+static void prepareDBusEnv()
 {
     // start service
     std::thread startQdbus(start_ll_service);
@@ -86,53 +87,56 @@ TEST(Package, install01)
     std::this_thread::sleep_for(std::chrono::seconds(1));
     linglong::service::registerAllMetaType();
     linglong::package::registerAllMetaType();
+}
 
-    OrgDeepinLinglongPackageManagerInterface pm("org.deepin.linglong.PackageManager",
-                                                "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
-    linglong::service::InstallParamOption installParam;
-    installParam.appId = "com.deepin.linglong.test";
-    QDBusPendingReply<linglong::service::Reply> reply = pm.Install(installParam);
-    reply.waitForFinished();
-    linglong::service::Reply retReply = reply.value();
-    EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
+static void cleanDBusEnv()
+{
     // stop service
     stop_ll_service();
+}
+
+void runPackageManagerDBusTest(std::function<void(OrgDeepinLinglongPackageManagerInterface &pmInterface)> f)
+{
+    prepareDBusEnv();
+    OrgDeepinLinglongPackageManagerInterface pm(DBusPackageManagerServiceName, DBusPackageManagerPath,
+                                                QDBusConnection::systemBus());
+    f(pm);
+    cleanDBusEnv();
+}
+
+TEST(Package, install01)
+{
+    runPackageManagerDBusTest([](OrgDeepinLinglongPackageManagerInterface &pm) {
+        auto refStr = "com.deepin.linglong.test";
+        QDBusPendingReply<linglong::service::Reply> reply = pm.Install(refStr, {});
+        reply.waitForFinished();
+        linglong::service::Reply retReply = reply.value();
+
+        EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
+    });
 }
 
 TEST(Package, install02)
 {
-    // start service
-    std::thread startQdbus(start_ll_service);
-    startQdbus.detach();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    runPackageManagerDBusTest([](OrgDeepinLinglongPackageManagerInterface &pm) {
+        linglong::service::UninstallParamOption uninstallParam;
+        uninstallParam.appId = "org.deepin.calculator";
+        uninstallParam.version = "5.7.16";
+        QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Uninstall(uninstallParam);
+        dbusReply.waitForFinished();
 
-    OrgDeepinLinglongPackageManagerInterface pm("org.deepin.linglong.PackageManager",
-                                                "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
+        auto refStr = "org.deepin.calculator/5.7.16";
+        dbusReply = pm.Install(refStr, {});
+        dbusReply.waitForFinished();
+        linglong::service::Reply retReply = dbusReply.value();
 
-    linglong::service::UninstallParamOption uninstallParam;
-    uninstallParam.appId = "org.deepin.calculator";
-    uninstallParam.version = "5.7.16";
-    QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Uninstall(uninstallParam);
-    dbusReply.waitForFinished();
-
-    linglong::service::InstallParamOption installParam;
-    installParam.appId = "org.deepin.calculator";
-    installParam.version = "5.7.16";
-    dbusReply = pm.Install(installParam);
-    dbusReply.waitForFinished();
-
-    linglong::service::Reply retReply = dbusReply.value();
-    EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
-    // stop service
-    stop_ll_service();
+        EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
+    });
 }
 
 TEST(Package, update01)
 {
-    // start service
-    std::thread startQdbus(start_ll_service);
-    startQdbus.detach();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    prepareDBusEnv();
 
     OrgDeepinLinglongPackageManagerInterface pm("org.deepin.linglong.PackageManager",
                                                 "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
@@ -163,97 +167,58 @@ TEST(Package, update01)
 
 TEST(Package, install03)
 {
-    // start service
-    std::thread startQdbus(start_ll_service);
-    startQdbus.detach();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    OrgDeepinLinglongPackageManagerInterface pm("org.deepin.linglong.PackageManager",
-                                                "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
-
     // 重复安装
-    linglong::service::InstallParamOption installParam;
-    installParam.appId = "org.deepin.calculator";
-    QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(installParam);
-    dbusReply.waitForFinished();
-    linglong::service::Reply retReply = dbusReply.value();
+    runPackageManagerDBusTest([](OrgDeepinLinglongPackageManagerInterface &pm) {
+        auto refStr = "org.deepin.calculator";
+        QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(refStr, {});
+        dbusReply.waitForFinished();
+        linglong::service::Reply retReply = dbusReply.value();
 
-    EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
-    stop_ll_service();
+        EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
+    });
 }
 
 TEST(Package, install04)
 {
-    // start service
-    std::thread startQdbus(start_ll_service);
-    startQdbus.detach();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    runPackageManagerDBusTest([](OrgDeepinLinglongPackageManagerInterface &pm) {
+        auto refStr = "";
+        QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(refStr, {});
+        dbusReply.waitForFinished();
+        linglong::service::Reply retReply = dbusReply.value();
 
-    OrgDeepinLinglongPackageManagerInterface pm("org.deepin.linglong.PackageManager",
-                                                "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
-
-    linglong::service::InstallParamOption installParam;
-    installParam.appId = "";
-    QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(installParam);
-    dbusReply.waitForFinished();
-    linglong::service::Reply retReply = dbusReply.value();
-    EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
-
-    stop_ll_service();
+        EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
+    });
 }
 
 TEST(Package, install05)
 {
-    // start service
-    std::thread startQdbus(start_ll_service);
-    startQdbus.detach();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    runPackageManagerDBusTest([](OrgDeepinLinglongPackageManagerInterface &pm) {
+        auto refStr = "org.deepin.calculator//arm64";
+        QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(refStr, {});
+        dbusReply.waitForFinished();
+        linglong::service::Reply retReply = dbusReply.value();
 
-    OrgDeepinLinglongPackageManagerInterface pm("org.deepin.linglong.PackageManager",
-                                                "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
-
-    linglong::service::InstallParamOption installParam;
-    installParam.appId = "org.deepin.calculator";
-    installParam.arch = "arm64";
-    QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(installParam);
-    dbusReply.waitForFinished();
-    linglong::service::Reply retReply = dbusReply.value();
-
-    EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
-
-    // stop service
-    stop_ll_service();
+        EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstallSuccess));
+    });
 }
 
 TEST(Package, install06)
 {
-    // start service
-    std::thread startQdbus(start_ll_service);
-    startQdbus.detach();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    runPackageManagerDBusTest([](OrgDeepinLinglongPackageManagerInterface &pm) {
+        auto refStr = "com.belmoussaoui.Decoder";
+        QVariantMap options;
+        options["repoPoint"] = "flatpak";
+        QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(refStr, options);
+        dbusReply.waitForFinished();
+        linglong::service::Reply retReply = dbusReply.value();
 
-    OrgDeepinLinglongPackageManagerInterface pm("org.deepin.linglong.PackageManager",
-                                                "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
-
-    linglong::service::InstallParamOption installParam;
-    installParam.appId = "com.belmoussaoui.Decoder";
-    installParam.repoPoint = "flatpak";
-    QDBusPendingReply<linglong::service::Reply> dbusReply = pm.Install(installParam);
-    dbusReply.waitForFinished();
-    linglong::service::Reply retReply = dbusReply.value();
-
-    EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstalling));
-
-    // stop service
-    stop_ll_service();
+        EXPECT_NE(retReply.code, STATUS_CODE(kPkgInstalling));
+    });
 }
 
 TEST(Package, run01)
 {
-    // start service
-    std::thread startQdbus(start_ll_service);
-    startQdbus.detach();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    prepareDBusEnv();
 
     OrgDeepinLinglongAppManagerInterface pm(AppManagerDBusServiceName, AppManagerDBusPath,
                                             QDBusConnection::sessionBus());

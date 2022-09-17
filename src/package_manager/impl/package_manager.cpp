@@ -168,7 +168,7 @@ bool PackageManagerPrivate::getAppJsonArray(const QString &jsonString, QJsonValu
  * @return bool: true:成功 false:失败
  */
 bool PackageManagerPrivate::loadAppInfo(const QString &jsonString, linglong::package::AppMetaInfoList &appList,
-                                              QString &err)
+                                        QString &err)
 {
     QJsonValue arrayValue;
     auto ret = getAppJsonArray(jsonString, arrayValue, err);
@@ -200,10 +200,13 @@ bool PackageManagerPrivate::loadAppInfo(const QString &jsonString, linglong::pac
  *
  * @return bool: true:成功 false:失败
  */
-bool PackageManagerPrivate::getAppInfofromServer(const QString &pkgName, const QString &pkgVer,
-                                                       const QString &pkgArch, QString &appData, QString &err)
+bool PackageManagerPrivate::getAppInfofromServer(const QString &pkgName, const QString &pkgVer, const QString &pkgArch,
+                                                 QString &appData, QString &err)
 {
-    bool ret = G_HTTPCLIENT->queryRemoteApp(pkgName, pkgVer, pkgArch, appData);
+    // FIXME: replace version latest to ""
+    auto queryVer = (pkgVer == kDefaultVersion) ? "" : pkgVer;
+
+    bool ret = G_HTTPCLIENT->queryRemoteApp(pkgName, queryVer, pkgArch, appData);
     if (!ret) {
         err = "getAppInfofromServer err, " + appData + " ,please check the network";
         qCritical() << err;
@@ -228,8 +231,8 @@ bool PackageManagerPrivate::getAppInfofromServer(const QString &pkgName, const Q
  * @return bool: true:成功 false:失败
  */
 bool PackageManagerPrivate::downloadAppData(const QString &pkgName, const QString &pkgVer, const QString &pkgArch,
-                                                  const QString &channel, const QString &module, const QString &dstPath,
-                                                  QString &err)
+                                            const QString &channel, const QString &module, const QString &dstPath,
+                                            QString &err)
 {
     bool ret = OSTREE_REPO_HELPER->ensureRepoEnv(kLocalRepoPath, err);
     if (!ret) {
@@ -358,8 +361,8 @@ Reply PackageManagerPrivate::GetDownloadStatus(const ParamOption &paramOption, i
  * @return bool: true:成功 false:失败
  */
 bool PackageManagerPrivate::installRuntime(const QString &runtimeId, const QString &runtimeVer,
-                                                 const QString &runtimeArch, const QString &channel,
-                                                 const QString &module, QString &err)
+                                           const QString &runtimeArch, const QString &channel, const QString &module,
+                                           QString &err)
 {
     linglong::package::AppMetaInfoList appList;
     QString appData = "";
@@ -416,7 +419,7 @@ bool PackageManagerPrivate::installRuntime(const QString &runtimeId, const QStri
  * @return bool: true:安装成功或已安装返回true false:安装失败
  */
 bool PackageManagerPrivate::checkAppRuntime(const QString &runtime, const QString &channel, const QString &module,
-                                                  QString &err)
+                                            QString &err)
 {
     // runtime ref in repo org.deepin.Runtime/20/x86_64
     QStringList runtimeInfo = runtime.split("/");
@@ -453,7 +456,7 @@ bool PackageManagerPrivate::checkAppRuntime(const QString &runtime, const QStrin
  * @return bool: true:安装成功或已安装返回true false:安装失败
  */
 bool PackageManagerPrivate::checkAppBase(const QString &runtime, const QString &channel, const QString &module,
-                                               QString &err)
+                                         QString &err)
 {
     // 通过runtime获取base ref
     QStringList runtimeList = runtime.split("/");
@@ -512,7 +515,8 @@ bool PackageManagerPrivate::checkAppBase(const QString &runtime, const QString &
  * @return AppMetaInfo: 最新版本的软件包
  *
  */
-linglong::package::AppMetaInfo *PackageManagerPrivate::getLatestApp(const QString &appId, const linglong::package::AppMetaInfoList &appList)
+linglong::package::AppMetaInfo *PackageManagerPrivate::getLatestApp(const QString &appId,
+                                                                    const linglong::package::AppMetaInfoList &appList)
 {
     linglong::package::AppMetaInfo *latestApp = appList.at(0).data();
     if (appList.size() == 1) {
@@ -640,17 +644,24 @@ void PackageManagerPrivate::delAppConfig(const QString &appId, const QString &ve
  * @param job
  * @return
  */
-util::Error PackageManagerPrivate::install(const InstallParamOption &installParamOption, Job *job)
+util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
 {
     QString userName = linglong::util::getUserName();
     if (noDBusMode) {
         userName = "deepin-linglong";
     }
     util::Error result(NoError());
-    package::Ref ref = toRef(installParamOption);
 
     std::unique_ptr<package::AppMetaInfo> latestMetaInfo;
     std::tie(result, latestMetaInfo) = getLatestPackageMetaInfo(ref);
+
+    if (!latestMetaInfo) {
+        auto errorCode = STATUS_CODE(kPkgInstallFailed);
+        auto errorMsg = QString("query package %1 failed").arg(ref.toSpecString());
+        job->setProgress(100, 0, "package has installed");
+        job->setFinish(errorCode, errorMsg);
+        return NewError(errorCode, errorMsg);
+    }
 
     package::Ref targetRef = latestMetaInfo->ref();
     package::Ref runtimeRef(latestMetaInfo->runtime);
@@ -1532,14 +1543,13 @@ Reply PackageManager::GetDownloadStatus(const ParamOption &paramOption, int type
     return d->GetDownloadStatus(paramOption, type);
 }
 
-QString PackageManager::Install(const InstallParamOption &installParamOption)
+QString PackageManager::Install(const QString &ref, const QVariantMap &options)
 {
     Q_D(PackageManager);
-    auto ref = toRef(installParamOption);
 
     auto job = JobManager::instance()->createJob([=](Job *job) {
         qDebug() << "install job start";
-        d->install(installParamOption, job);
+        d->install(package::Ref(ref), job);
     });
 
     return job->path();

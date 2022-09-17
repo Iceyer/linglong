@@ -711,7 +711,7 @@ linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
 linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, const QVariantMap &extraData)
 {
     Q_D(OSTreeRepo);
-    auto refStr = ref.toString();
+    auto refStr = ref.toOSTreeRefString();
     return WrapError(d->pull(refStr, extraData));
 }
 

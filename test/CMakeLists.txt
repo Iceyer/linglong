@@ -47,19 +47,21 @@ set(LL_TEST_SOURCES
     ../src/module/package/info.h
     ../src/module/package/package.cpp
     ../src/module/package/package.h
+    ../src/module/package/ref.cpp
+    ../src/module/package/ref.h
     ../src/module/repo/ostree_repohelper.cpp
-    ../src/module/runtime/container.cpp
-    ../src/module/runtime/oci.h
-    ../src/module/util/connection.cpp
-    ../src/module/util/desktop_entry.cpp
-    ../src/module/util/file.cpp
     ../src/module/repo/repo_client.cpp
     ../src/module/repo/repo_client.h
     ../src/module/runtime/container.cpp
+    ../src/module/runtime/container.cpp
+    ../src/module/runtime/oci.h
     ../src/module/runtime/oci.h
     ../src/module/util/config/config.h
     ../src/module/util/connection.cpp
+    ../src/module/util/connection.cpp
     ../src/module/util/desktop_entry.cpp
+    ../src/module/util/desktop_entry.cpp
+    ../src/module/util/file.cpp
     ../src/module/util/file.cpp
     ../src/module/util/http/http_client.cpp
     ../src/module/util/http/http_client.h
@@ -68,12 +70,17 @@ set(LL_TEST_SOURCES
     ../src/module/util/sysinfo.cpp
     ../src/module/util/uuid.cpp
     ../src/module/util/xdg.cpp
-    ../src/service/impl/param_option.h
-    ../src/service/impl/reply.h
     ../src/package_manager/impl/app_status.cpp
     ../src/package_manager/impl/appinfo_cache.cpp
+    ../src/service/impl/param_option.h
+    ../src/service/impl/reply.h
+    module/config/config_test.cpp
     module/package/package_info_test.cpp
     module/package/ref_test.cpp
+    module/serialize/qt_json.cpp
+    module/serialize/qt_yaml.cpp
+    module/serialize/serialize_test.cpp
+    module/serialize/serialize_test.h
     module/util/app_status_test.cpp
     module/util/fs_test.cpp
     module/util/httpclient_test.cpp
@@ -119,10 +126,7 @@ qt5_add_dbus_interface(
   dbus_gen_system_helper_interface
 )
 
-add_executable(
-  ll-test
-  ${LL_TEST_SOURCES}
-)
+add_executable(ll-test ${LL_TEST_SOURCES})
 
 target_include_directories(
   ll-test

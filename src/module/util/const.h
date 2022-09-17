@@ -15,6 +15,8 @@ namespace linglong {
 
 const auto kDefaultRepo = "linglong";
 const auto kDefaultChannel = "main";
+const auto kDefaultVersion = "latest";
+const auto kDefaultModule = "binary";
 
 } // namespace linglong
 

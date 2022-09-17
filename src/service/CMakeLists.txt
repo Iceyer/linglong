@@ -17,6 +17,7 @@ set(LL_SERVICE_SOURCES
     ../module/flatpak/flatpak_manager.cpp
     ../module/package/info.cpp
     ../module/package/package.cpp
+    ../module/package/ref.cpp
     ../module/repo/ostree_repo.cpp
     ../module/repo/ostree_repo.h
     ../module/repo/ostree_repohelper.cpp

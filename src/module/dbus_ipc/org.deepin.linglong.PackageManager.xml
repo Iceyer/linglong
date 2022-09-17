@@ -10,9 +10,10 @@
             <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="linglong::service::Reply"/>
         </method>
         <method name="Install">
-            <arg name="installParamOption" type="(ssssss)" direction="in"/>
-            <arg name="reply" type="s" direction="out"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="linglong::service::InstallParamOption"/>
+            <arg name="ref" type="s" direction="in"/>
+            <arg name="options" type="a{sv}" direction="in"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
+            <arg name="jobPath" type="s" direction="out"/>
         </method>
         <method name="Uninstall">
             <arg name="paramOption" type="(ssssssbb)" direction="in"/>

@@ -4,6 +4,7 @@ set(LL_CLI_SOURCES
     ../module/package/info.cpp
     ../module/package/package.cpp
     ../module/package/package.h
+    ../module/package/ref.cpp
     ../module/repo/ostree_repo.cpp
     ../module/repo/ostree_repohelper.cpp
     ../module/repo/repo.cpp

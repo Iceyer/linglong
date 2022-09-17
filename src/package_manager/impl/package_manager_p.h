@@ -38,7 +38,7 @@ public:
     util::Error exportFiles(const package::Ref &ref);
 
 private:
-    util::Error install(const InstallParamOption &installParamOption, Job *job);
+    util::Error install(const package::Ref &ref, Job *job);
 
     Reply Install(const InstallParamOption &installParamOption);
     Reply Uninstall(const UninstallParamOption &paramOption);

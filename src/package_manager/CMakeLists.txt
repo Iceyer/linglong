@@ -19,6 +19,7 @@ set(LL_SYSTEM_SERVICE_SOURCES
     ../module/package/package.cpp
     ../module/package/package.h
     ../module/package/package.h
+    ../module/package/ref.cpp
     ../module/repo/ostree_repo.cpp
     ../module/repo/ostree_repohelper.cpp
     ../module/repo/ostree_repohelper.cpp

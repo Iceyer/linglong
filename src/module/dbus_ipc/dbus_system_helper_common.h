@@ -11,6 +11,8 @@
 #ifndef LINGLONG_SRC_MODULE_DBUS_IPC_DBUS_SYSTEM_HELPER_COMMON_H_
 #define LINGLONG_SRC_MODULE_DBUS_IPC_DBUS_SYSTEM_HELPER_COMMON_H_
 
+#include "dbus_common.h"
+
 namespace linglong {
 
 const char *const SystemHelperDBusServiceName = "org.deepin.linglong.SystemHelper";

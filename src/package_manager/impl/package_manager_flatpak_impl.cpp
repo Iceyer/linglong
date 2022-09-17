@@ -30,7 +30,7 @@ Reply PackageManagerFlatpakImpl::Install(const InstallParamOption &installParamO
         reply.code = STATUS_CODE(kPkgInstallSuccess);
         reply.message = "install " + appId + " success";
     }
-    qInfo() << "flatpak Install " << appId << ", ret:" << ret;
+    qInfo() << "flatpak Install_Old " << appId << ", ret:" << ret;
     return reply;
 }
 

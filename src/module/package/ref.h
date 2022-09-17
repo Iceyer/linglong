@@ -54,7 +54,25 @@ public:
         autoFill();
     }
 
-    QString toString() const
+    /*!
+     * toOSTreeRef return
+     * {repo}:/{channel}/{id}/{version}/{arch}/{module}
+     * or
+     * {channel}/{id}/{version}/{arch}/{module}
+     * @return
+     */
+    QString toOSTreeRefString() const;
+
+    /*!
+     * toSpecString return {repo}/{channel}:{id}/{version}/{arch}/{module}
+     * @return
+     */
+    QString toSpecString() const
+    {
+        return QString("%1/%2:%3/%4/%5/%6").arg(repo, channel, appId, version, arch, module);
+    }
+
+    Q_DECL_DEPRECATED QString toString() const
     {
         QString ref = repo.isEmpty() ? "" : repo + ":";
         QString channelRef = channel.isEmpty() ? "" : channel + "/";
@@ -64,9 +82,12 @@ public:
     }
 
     // FIXME: local().toString()?
-    QString toLocalRefString() const { return QString("%1/%2/%3").arg(appId, version, arch); }
+    Q_DECL_DEPRECATED QString toLocalRefString() const { return QString("%1/%2/%3").arg(appId, version, arch); }
 
-    QString toLocalFullRef() const { return QString("%1/%2/%3/%4").arg(appId, version, arch, module); }
+    Q_DECL_DEPRECATED QString toLocalFullRef() const
+    {
+        return QString("%1/%2/%3/%4").arg(appId, version, arch, module);
+    }
 
     QString repo;
     QString channel;

@@ -1,10 +1,14 @@
 set(LL_BUILDER_SOURCES
     # cmake-format: sortable
     ../cli/cmd/command_helper.cpp
+    ../module/dbus_ipc/dbus_common.h
     ../module/flatpak/flatpak_manager.cpp
     ../module/package/bundle.cpp
     ../module/package/info.cpp
+    ../module/package/info.h
     ../module/package/package.cpp
+    ../module/package/ref.cpp
+    ../module/package/ref.h
     ../module/repo/ostree_repo.cpp
     ../module/repo/ostree_repo.h
     ../module/repo/ostree_repohelper.cpp
@@ -46,9 +50,8 @@ set(RESOURCES
     resource/template.yaml
 )
 
-set(CONFIG_FILE
-    # cmake-format: sortable
-    resource/builder.yaml
+set(CONFIG_FILE # cmake-format: sortable
+                resource/builder.yaml
 )
 
 find_package(CURL REQUIRED)
