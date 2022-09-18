@@ -1,12 +1,12 @@
 /*
-* Copyright (c) 2020. Uniontech Software Ltd. All rights reserved.
-*
-* Author:     Iceyer <me@iceyer.net>
-*
-* Maintainer: Iceyer <me@iceyer.net>
-*
-* SPDX-License-Identifier: GPL-3.0-or-later
-*/
+ * Copyright (c) 2020. Uniontech Software Ltd. All rights reserved.
+ *
+ * Author:     Iceyer <me@iceyer.net>
+ *
+ * Maintainer: Iceyer <me@iceyer.net>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
 
 #ifndef LINGLONG_SRC_MODULE_UTIL_CONFIG_CONFIG_H_
 #define LINGLONG_SRC_MODULE_UTIL_CONFIG_CONFIG_H_
@@ -40,10 +40,9 @@ Q_SERIALIZE_DECLARE_TYPE(Config)
 void registerAllMetatype();
 
 } // namespace config
-
-config::Config &ConfigInstance();
-
 } // namespace linglong
+
+linglong::config::Config &ConfigInstance();
 
 Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::config, Repo)
 Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::config, Config)

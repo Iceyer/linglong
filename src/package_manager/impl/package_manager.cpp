@@ -667,6 +667,12 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     package::Ref runtimeRef(latestMetaInfo->runtime);
     package::Ref baseRef = getRuntimeBaseRef(runtimeRef);
 
+    // FIXME: how to select channel
+    runtimeRef.repo = "";
+    runtimeRef.channel = targetRef.channel;
+    baseRef.repo = "";
+    baseRef.channel = targetRef.channel;
+
     auto needInstallRuntime = !isUserRuntimeInstalled(userName, runtimeRef);
     auto needInstallBase = !isUserBaseInstalled(userName, baseRef);
 
@@ -710,6 +716,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     auto runtimeInstallPath = ostreeRepo.rootOfLayer(runtimeRef);
     qDebug() << "check runtime" << runtimeRef.toString() << "is installed";
     if (needInstallRuntime) {
+        // FIXME: update database
         // install runtime
         extraData[KeyInstallJobStageProgressBegin] = stageRuntimeProgressBegin;
         extraData[KeyInstallJobStageProgressEnd] = stageRuntimeProgressEnd;
@@ -722,6 +729,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     qDebug() << "check base" << baseRef.toString() << "is installed";
     auto baseInstallPath = ostreeRepo.rootOfLayer(baseRef);
     if (needInstallBase) {
+        // FIXME: update database
         // install base
         extraData[KeyInstallJobStageProgressBegin] = stageBaseProgressBegin;
         extraData[KeyInstallJobStageProgressEnd] = stageBaseProgressEnd;
@@ -1614,6 +1622,32 @@ void PackageManager::setNoDBusMode(bool enable)
     Q_D(PackageManager);
     d->noDBusMode = true;
     qInfo() << "setNoDBusMode enable:" << enable;
+}
+
+QVariantMap PackageManager::Show(const QString &ref, const QVariantMap &options)
+{
+    sendErrorReply(QDBusError::NotSupported, "");
+    return QVariantMap();
+}
+
+QVariantMapList PackageManager::List(const QVariantMap &options)
+{
+    QVariantMapList packages;
+    QueryReply reply;
+
+    auto ret = linglong::util::queryAllInstalledApp("", reply.result, reply.message);
+    if (!ret) {
+        qCritical() << "queryAllInstalledApp failed" << reply.message;
+        sendErrorReply(QDBusError::InternalError, reply.message);
+        return packages;
+    }
+
+    auto jsonDoc = QJsonDocument::fromJson(reply.result.toUtf8());
+    auto packageList = jsonDoc.toVariant().toList();
+    for (auto const &package : packageList) {
+        packages.push_back(package.toMap());
+    }
+    return packages;
 }
 
 } // namespace package_manager

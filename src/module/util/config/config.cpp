@@ -17,17 +17,39 @@
 #include "module/util/serialize/yaml.h"
 
 namespace linglong {
+namespace config {
 
-const char *const kConfigFileName = "config.yaml";
+static const char *const kConfigFileName = "config.yaml";
 // TODO: check more path for different distribution
-const char *const kDefaultConfigFilePath = "/usr/share/linglong/config.yaml";
+static const char *const kDefaultConfigFilePath = "/usr/share/linglong/config.yaml";
 
 static QString filePath()
 {
     return util::getLinglongRootPath() + "/" + kConfigFileName;
 }
 
-namespace config {
+static Config *loadConfig()
+{
+    auto configFilePath = filePath();
+    if (!util::fileExists(configFilePath) && util::fileExists(kDefaultConfigFilePath)) {
+        QFile configFile(kDefaultConfigFilePath);
+        configFile.copy(configFilePath);
+    }
+
+    Config *cfg = nullptr;
+    try {
+        cfg = formYaml<config::Config>(YAML::LoadFile(filePath().toStdString()));
+        return cfg;
+    } catch (...) {
+        qWarning() << "load" << filePath() << "failed";
+    }
+
+    if (!cfg) {
+        cfg = new Config;
+    }
+
+    return cfg;
+}
 
 void registerAllMetatype()
 {
@@ -40,12 +62,6 @@ Config::Config(QObject *parent)
 {
     static std::once_flag flag;
     std::call_once(flag, []() { registerAllMetatype(); });
-
-    auto configFilePath = filePath();
-    if (!util::fileExists(configFilePath) && util::fileExists(kDefaultConfigFilePath)) {
-        QFile configFile(kDefaultConfigFilePath);
-        configFile.copy(configFilePath);
-    }
 }
 
 void Config::onPostSerialize()
@@ -65,11 +81,10 @@ void Config::save()
 }
 
 } // namespace config
+} // namespace linglong
 
-config::Config &ConfigInstance()
+linglong::config::Config &ConfigInstance()
 {
-    static QScopedPointer<config::Config> config(formYaml<config::Config>(YAML::LoadFile(filePath().toStdString())));
+    static QScopedPointer<linglong::config::Config> config(linglong::config::loadConfig());
     return *config;
 }
-
-} // namespace linglong

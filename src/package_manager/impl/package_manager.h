@@ -76,6 +76,10 @@ public Q_SLOTS:
 
     QString Install(const QString &ref, const QVariantMap &options);
 
+    QVariantMap Show(const QString &ref, const QVariantMap &options);
+
+    QVariantMapList List(const QVariantMap &options);
+
     /**
      * @brief 卸载软件包
      *

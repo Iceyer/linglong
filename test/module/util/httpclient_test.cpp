@@ -19,7 +19,7 @@ TEST(httpclient, test01)
 {
     QStringList userInfo = {"linglong", "linglong"};
 
-    QString configUrl = linglong::ConfigInstance().repos[linglong::kDefaultRepo]->endpoint;
+    QString configUrl = ConfigInstance().repos[linglong::kDefaultRepo]->endpoint;
 
     EXPECT_EQ (true, !configUrl.isEmpty());
 

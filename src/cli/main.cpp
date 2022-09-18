@@ -226,15 +226,15 @@ int main(int argc, char **argv)
     OrgDeepinLinglongAppManagerInterface appManager(AppManagerDBusServiceName, AppManagerDBusPath,
                                                     QDBusConnection::sessionBus());
 
-    OrgDeepinLinglongPackageManagerInterface sysPackageManager(DBusPackageManagerServiceName, DBusPackageManagerPath,
-                                                               QDBusConnection::systemBus());
+    OrgDeepinLinglongPackageManagerInterface packageManager(DBusPackageManagerServiceName, DBusPackageManagerPath,
+                                                            QDBusConnection::systemBus());
 
     checkAndStartService(appManager);
 
     // some common option
-    auto optChannel = QCommandLineOption("channel", "The channel of package", "linglong", "linglong");
+    auto optChannel = QCommandLineOption("channel", "The channel of package", kDefaultChannel, kDefaultChannel);
     parser.addOption(optChannel);
-    auto optModule = QCommandLineOption("module", "The module of package", "binary", "binary");
+    auto optModule = QCommandLineOption("module", "The module of package", kDefaultModule, kDefaultModule);
     parser.addOption(optModule);
 
     QMap<QString, std::function<int(QCommandLineParser & parser)>> subcommandMap = {
@@ -510,7 +510,7 @@ int main(int argc, char **argv)
 
              qDebug() << "install spec ref" << ref.toSpecString();
 
-             QDBusPendingReply<QString> dbusReply = sysPackageManager.Install(ref.toSpecString(), {});
+             QDBusPendingReply<QString> dbusReply = packageManager.Install(ref.toSpecString(), {});
              dbusReply.waitForFinished();
              QString jobPath = dbusReply.value();
 
@@ -551,16 +551,16 @@ int main(int argc, char **argv)
              // 增加 channel/module
              paramOption.channel = parser.value(optChannel);
              paramOption.appModule = parser.value(optModule);
-             sysPackageManager.setTimeout(1000 * 60 * 60 * 24);
+             packageManager.setTimeout(1000 * 60 * 60 * 24);
              qInfo().noquote() << "update" << paramOption.appId << ", please wait a few minutes...";
-             QDBusPendingReply<linglong::service::Reply> dbusReply = sysPackageManager.Update(paramOption);
+             QDBusPendingReply<linglong::service::Reply> dbusReply = packageManager.Update(paramOption);
              dbusReply.waitForFinished();
              linglong::service::Reply reply;
              reply = dbusReply.value();
              if (reply.code == STATUS_CODE(kPkgUpdating)) {
                  signal(SIGINT, doIntOperate);
                  QThread::sleep(1);
-                 dbusReply = sysPackageManager.GetDownloadStatus(paramOption, 1);
+                 dbusReply = packageManager.GetDownloadStatus(paramOption, 1);
                  dbusReply.waitForFinished();
                  reply = dbusReply.value();
                  bool disProgress = false;
@@ -570,7 +570,7 @@ int main(int argc, char **argv)
                      std::cout << "\r\33[K" << reply.message.toStdString();
                      std::cout.flush();
                      QThread::sleep(1);
-                     dbusReply = sysPackageManager.GetDownloadStatus(paramOption, 1);
+                     dbusReply = packageManager.GetDownloadStatus(paramOption, 1);
                      dbusReply.waitForFinished();
                      reply = dbusReply.value();
                      disProgress = true;
@@ -615,7 +615,7 @@ int main(int argc, char **argv)
              paramOption.repoPoint = repoType;
              paramOption.appId = args.value(1);
 
-             QDBusPendingReply<linglong::service::QueryReply> dbusReply = sysPackageManager.Query(paramOption);
+             QDBusPendingReply<linglong::service::QueryReply> dbusReply = packageManager.Query(paramOption);
              dbusReply.waitForFinished();
              linglong::service::QueryReply reply = dbusReply.value();
 
@@ -632,7 +632,7 @@ int main(int argc, char **argv)
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
              parser.addPositionalArgument("uninstall", "uninstall an application", "uninstall");
-             addRefArguments(parser, {});
+             addRefArguments(parser, {optChannel, optModule});
 
              auto optAllVer = QCommandLineOption("all-version", "uninstall all version application", "");
              parser.addOption(optAllVer);
@@ -649,8 +649,9 @@ int main(int argc, char **argv)
                  parser.showHelp(-1);
                  return -1;
              }
+
              auto appInfo = args.value(1);
-             sysPackageManager.setTimeout(1000 * 60 * 60 * 24);
+             packageManager.setTimeout(1000 * 60 * 60 * 24);
              QDBusPendingReply<linglong::service::Reply> dbusReply;
              linglong::service::UninstallParamOption paramOption;
              // appId format: org.deepin.calculator/1.2.6 in multi-version
@@ -679,7 +680,7 @@ int main(int argc, char **argv)
                  }
                  return 0;
              }
-             dbusReply = sysPackageManager.Uninstall(paramOption);
+             dbusReply = packageManager.Uninstall(paramOption);
              dbusReply.waitForFinished();
              reply = dbusReply.value();
 
@@ -692,48 +693,20 @@ int main(int argc, char **argv)
          }},
         {"list", // 查询已安装玲珑包
          [&](QCommandLineParser &parser) -> int {
-             auto optType = QCommandLineOption("type", "query installed app", "--type=installed", "installed");
              parser.clearPositionalArguments();
-             parser.addPositionalArgument("list", "show installed application", "list");
-             parser.addOption(optType);
-             auto optRepoPoint = QCommandLineOption("repo-point", "app repo type to use", "repo-point", "");
-             parser.addOption(optRepoPoint);
-             auto optNoDbus = QCommandLineOption("nodbus", "execute cmd directly, not via dbus", "");
-             optNoDbus.setFlags(QCommandLineOption::HiddenFromHelp);
-             parser.addOption(optNoDbus);
+             parser.addPositionalArgument("list", "show installed package", "list");
              parser.process(app);
-             auto optPara = parser.value(optType);
-             if ("installed" != optPara) {
-                 parser.showHelp(-1);
-                 return -1;
+
+             QDBusPendingReply<QVariantMapList> dbusReply = packageManager.List({});
+             dbusReply.waitForFinished();
+             if (dbusReply.isError()) {
+                 qCritical() << dbusReply.error();
+                 return dbusReply.error().type();
              }
 
-             args = parser.positionalArguments();
-             auto repoType = parser.value(optRepoPoint);
-             if (args.size() != 1 || (!repoType.isEmpty() && "flatpak" != repoType)) {
-                 parser.showHelp(-1);
-                 return -1;
-             }
+             auto list = fromVariantList<package::AppMetaInfoList>(toVariant(dbusReply.value()));
+             printAppInfo(list);
 
-             linglong::service::QueryParamOption paramOption;
-             paramOption.appId = optPara;
-             paramOption.repoPoint = repoType;
-             linglong::package::AppMetaInfoList appMetaInfoList;
-             linglong::service::QueryReply reply;
-             if (parser.isSet(optNoDbus)) {
-                 reply = SYSTEM_MANAGER_HELPER->Query(paramOption);
-             } else {
-                 QDBusPendingReply<linglong::service::QueryReply> dbusReply = sysPackageManager.Query(paramOption);
-                 // 默认超时时间为 25s
-                 dbusReply.waitForFinished();
-                 reply = dbusReply.value();
-             }
-             linglong::util::getAppMetaInfoListByJson(reply.result, appMetaInfoList);
-             if (1 == appMetaInfoList.size() && "flatpaklist" == appMetaInfoList.at(0)->appId) {
-                 printFlatpakAppInfo(appMetaInfoList);
-             } else if (appMetaInfoList.size() > 1) {
-                 printAppInfo(appMetaInfoList);
-             }
              return 0;
          }},
         {"repo",
@@ -750,7 +723,7 @@ int main(int argc, char **argv)
                  parser.showHelp(-1);
                  return -1;
              }
-             QDBusPendingReply<linglong::service::Reply> dbusReply = sysPackageManager.ModifyRepo(url);
+             QDBusPendingReply<linglong::service::Reply> dbusReply = packageManager.ModifyRepo(url);
              dbusReply.waitForFinished();
              linglong::service::Reply reply = dbusReply.value();
              if (reply.code != STATUS_CODE(kErrorModifyRepoSuccess)) {

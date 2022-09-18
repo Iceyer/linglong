@@ -22,11 +22,14 @@ inline void registerAllMetaType()
 {
     registerAllOciMetaType();
 
-    qSerializeRegister<Layer>();
-    qSerializeRegister<MountYaml>();
-    qSerializeRegister<AppPermission>();
-    qSerializeRegister<App>();
-    qSerializeRegister<Container>();
+    static std::once_flag flag;
+    std::call_once(flag, []() {
+        qSerializeRegister<linglong::runtime::Layer>();
+        qSerializeRegister<linglong::runtime::MountYaml>();
+        qSerializeRegister<linglong::runtime::AppPermission>();
+        qSerializeRegister<linglong::runtime::App>();
+        qSerializeRegister<Container>();
+    });
 }
 
 } // namespace runtime

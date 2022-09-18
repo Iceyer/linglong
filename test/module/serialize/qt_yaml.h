@@ -79,5 +79,7 @@ class TestApp : public Serialize
     Q_SERIALIZE_PROPERTY(NamespaceList, namespaces);
     Q_SERIALIZE_PTR_PROPERTY(Root, root);
     Q_SERIALIZE_PTR_PROPERTY(TestPermission, permissions);
+    Q_SERIALIZE_PTR_PROPERTY(TestMount, package);
+    Q_SERIALIZE_PTR_PROPERTY(TestMount, runtime);
 };
 Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE(TestApp)

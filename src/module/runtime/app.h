@@ -29,13 +29,7 @@ class Layer : public Serialize
     Q_SERIALIZE_CONSTRUCTOR(Layer)
     Q_SERIALIZE_PROPERTY(QString, ref);
 };
-} // namespace runtime
-} // namespace linglong
-
-Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::runtime, Layer)
-
-namespace linglong {
-namespace runtime {
+Q_SERIALIZE_DECLARE_TYPE(Layer);
 
 class MountYaml : public Serialize
 {
@@ -46,13 +40,8 @@ class MountYaml : public Serialize
     Q_SERIALIZE_PROPERTY(QString, source);
     Q_SERIALIZE_PROPERTY(QString, destination);
 };
-} // namespace runtime
-} // namespace linglong
+Q_SERIALIZE_DECLARE_TYPE(MountYaml);
 
-Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::runtime, MountYaml)
-
-namespace linglong {
-namespace runtime {
 /*!
  * Permission: base for run, you can use full run or let it empty
  */
@@ -62,22 +51,15 @@ class AppPermission : public Serialize
     Q_SERIALIZE_CONSTRUCTOR(AppPermission)
     Q_SERIALIZE_PROPERTY(linglong::runtime::MountYamlList, mounts);
 };
-
-} // namespace runtime
-} // namespace linglong
-
-Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::runtime, AppPermission)
-
-namespace linglong {
-namespace runtime {
+Q_SERIALIZE_DECLARE_TYPE(AppPermission);
 
 class AppPrivate;
 class App : public Serialize
 {
     Q_OBJECT;
     Q_SERIALIZE_PROPERTY(QString, version);
-    Q_SERIALIZE_PTR_PROPERTY(Layer, package);
-    Q_SERIALIZE_PTR_PROPERTY(Layer, runtime);
+    Q_SERIALIZE_PTR_PROPERTY(linglong::runtime::Layer, package);
+    Q_SERIALIZE_PTR_PROPERTY(linglong::runtime::Layer, runtime);
 
     // TODO: should config base mount point
     Q_SERIALIZE_PTR_PROPERTY(linglong::runtime::AppPermission, permissions);
@@ -102,8 +84,12 @@ private:
     QScopedPointer<AppPrivate> dd_ptr;
     Q_DECLARE_PRIVATE_D(qGetPtrHelper(dd_ptr), App)
 };
+Q_SERIALIZE_DECLARE_TYPE(App);
 
 } // namespace runtime
 } // namespace linglong
 
-Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::runtime, App)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, Layer)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, MountYaml)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, AppPermission)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, App)

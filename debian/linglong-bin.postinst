@@ -28,8 +28,8 @@ configure)
         fi
 
         #copy config.json to LINGLONG_ROOT
-        if [ ! -f ${LINGLONG_ROOT}/config.json ]; then
-                cp /usr/share/linglong/config.json ${LINGLONG_ROOT}/config.json
+        if [ ! -f ${LINGLONG_ROOT}/config.yaml ]; then
+                cp /usr/share/linglong/config.yaml ${LINGLONG_ROOT}/config.yaml
         fi
 
         #daemon-reload for /usr/lib/systemd/user-environment-generators/50-linglong

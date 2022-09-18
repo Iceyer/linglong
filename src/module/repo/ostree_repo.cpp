@@ -761,7 +761,7 @@ linglong::util::Error OSTreeRepo::checkout(const package::Ref &ref, const QStrin
         args.push_back("--subpath=" + subPath);
     }
     args.append(extraArgs);
-    args.append({ref.toString(), targetPath});
+    args.append({ref.toOSTreeRefString(), targetPath});
 
     util::ensureParentDir(targetPath);
 

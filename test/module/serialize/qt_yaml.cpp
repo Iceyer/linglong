@@ -12,6 +12,31 @@
 
 #include "qt_yaml.h"
 
+auto yamlData = R"MLS00(version: 1.0
+
+package:
+  source: "linglong/main:org.deepin.demo/2.2.32/x86_64/binary"
+
+runtime:
+  source: "linglong/main:org.deepin.Runtime/20.5.0/x86_64/binary"
+)MLS00";
+
+
+TEST(Serialize, YAML_STRING)
+{
+    linglong::runtime::registerAllOciMetaType();
+
+    qSerializeRegister<TestMount>();
+    qSerializeRegister<TestPermission>();
+    qSerializeRegister<TestApp>();
+
+    YAML::Node doc = YAML::Load(yamlData);
+
+    auto app = formYaml<TestApp>(doc);
+
+    EXPECT_EQ(app->package->source, "linglong/main:org.deepin.demo/2.2.32/x86_64/binary");
+}
+
 TEST(Serialize, YAML_NS)
 {
     qSerializeRegister<linglong::test::MountRule>();

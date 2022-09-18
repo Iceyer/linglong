@@ -13,6 +13,17 @@
 
 #include <QVariantMap>
 
-Q_DECLARE_METATYPE(QList<QVariantMap>);
+typedef QList<QVariantMap> QVariantMapList;
+
+Q_DECLARE_METATYPE(QVariantMapList);
+
+inline QVariant toVariant(const QVariantMapList &vml)
+{
+    QVariantList vl;
+    for (auto const &pkg : vml) {
+        vl.push_back(pkg);
+    }
+    return vl;
+}
 
 #endif // LINGLONG_SRC_MODULE_DBUS_IPC_DBUS_COMMON_H_

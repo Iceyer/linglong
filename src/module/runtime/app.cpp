@@ -905,8 +905,9 @@ public:
         // create yaml form info
         // auto appRoot = LocalRepo::get()->rootOfLatest();
         auto latestAppRef = repo->latestOfRef(appId, appVersion);
-        qDebug() << "loadConfig ref:" << latestAppRef.toLocalRefString();
+        qDebug() << "loadConfig ref:" << latestAppRef.toSpecString();
         auto appInstallRoot = repo->rootOfLayer(latestAppRef);
+        qDebug() << "appInstallRoot:" << appInstallRoot;
 
         auto appInfo = appInstallRoot + "/info.json";
         // 判断是否存在
@@ -928,15 +929,18 @@ public:
             // info->runtime = "deepin.Runtime.Sdk/23/x86_64";
         }
 
-        package::Ref runtimeRef(info->runtime);
+        latestAppRef.channel = channel;
+        latestAppRef.module = module;
+        QString appRefStr = latestAppRef.toSpecString();
 
-        QString appRef =
-            QString("%1/").arg(channel) + latestAppRef.toLocalRefString().append(QString("/%1").arg(module));
-        QString runtimeFullRef =
-            QString("%1/").arg(channel) + runtimeRef.toLocalRefString().append(QString("/%1").arg(module));
+        package::Ref runtimeRef(info->runtime);
+        runtimeRef.channel = channel;
+        runtimeRef.module = module;
+        QString runtimeFullRefStr = runtimeRef.toSpecString();
+
         QMap<QString, QString> variables = {
-            {"APP_REF", appRef},
-            {"RUNTIME_REF", runtimeFullRef},
+            {"APP_REF", appRefStr},
+            {"RUNTIME_REF", runtimeFullRefStr},
         };
 
         // TODO: remove to util module as file_template.cpp

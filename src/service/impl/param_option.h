@@ -12,6 +12,8 @@
 
 #include <QDBusArgument>
 
+#include "module/dbus_ipc/dbus_common.h"
+
 namespace linglong {
 namespace service {
 

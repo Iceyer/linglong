@@ -28,6 +28,7 @@ inline void registerAllMetaType()
     qDBusRegisterMetaType<linglong::service::QueryParamOption>();
     qDBusRegisterMetaType<linglong::service::UninstallParamOption>();
     qDBusRegisterMetaType<QStringMap>();
+    qDBusRegisterMetaType<QVariantMapList>();
     qDBusRegisterMetaType<linglong::service::RunParamOption>();
     qDBusRegisterMetaType<linglong::service::ExecParamOption>();
 }
