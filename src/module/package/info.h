@@ -8,14 +8,14 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef LINGLONG_BOX_SRC_MODULE_PACKAGE_INFO_H_
-#define LINGLONG_BOX_SRC_MODULE_PACKAGE_INFO_H_
+#ifndef LINGLONG_SRC_MODULE_PACKAGE_INFO_H_
+#define LINGLONG_SRC_MODULE_PACKAGE_INFO_H_
 
 #include <QDBusArgument>
 #include <QList>
 #include <QObject>
 
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 #include "module/runtime/oci.h"
 #include "ref.h"
 
@@ -27,97 +27,97 @@ namespace package {
  *
  * 包信息类
  */
-class User : public JsonSerialize
+class User : public Serialize
 {
     Q_OBJECT
-    Q_JSON_CONSTRUCTOR(User)
-    Q_JSON_PROPERTY(QString, desktop);
-    Q_JSON_PROPERTY(QString, documents);
-    Q_JSON_PROPERTY(QString, downloads);
-    Q_JSON_PROPERTY(QString, music);
-    Q_JSON_PROPERTY(QString, pictures);
-    Q_JSON_PROPERTY(QString, videos);
-    Q_JSON_PROPERTY(QString, templates);
-    Q_JSON_PROPERTY(QString, temp);
-    Q_JSON_ITEM_MEMBER(QString, public_share, publicShare);
+    Q_SERIALIZE_CONSTRUCTOR(User)
+    Q_SERIALIZE_PROPERTY(QString, desktop);
+    Q_SERIALIZE_PROPERTY(QString, documents);
+    Q_SERIALIZE_PROPERTY(QString, downloads);
+    Q_SERIALIZE_PROPERTY(QString, music);
+    Q_SERIALIZE_PROPERTY(QString, pictures);
+    Q_SERIALIZE_PROPERTY(QString, videos);
+    Q_SERIALIZE_PROPERTY(QString, templates);
+    Q_SERIALIZE_PROPERTY(QString, temp);
+    Q_SERIALIZE_ITEM_MEMBER(QString, public_share, publicShare);
 };
 /*!
  * \brief The Info class
  * \details 文件系统挂载权限信息
  */
-class Filesystem : public JsonSerialize
+class Filesystem : public Serialize
 {
     Q_OBJECT
-    Q_JSON_CONSTRUCTOR(Filesystem)
-    Q_JSON_PTR_PROPERTY(User, user);
+    Q_SERIALIZE_CONSTRUCTOR(Filesystem)
+    Q_SERIALIZE_PTR_PROPERTY(User, user);
 };
 
 /*!
  * \brief The Info class
  * \details 权限信息类
  */
-class Permission : public JsonSerialize
+class Permission : public Serialize
 {
     Q_OBJECT
-    Q_JSON_CONSTRUCTOR(Permission)
-    Q_JSON_PROPERTY(bool, autostart);
-    Q_JSON_PROPERTY(bool, notification);
-    Q_JSON_PROPERTY(bool, trayicon);
-    Q_JSON_PROPERTY(bool, clipboard);
-    Q_JSON_PROPERTY(bool, account);
-    Q_JSON_PROPERTY(bool, bluetooth);
-    Q_JSON_PROPERTY(bool, camera);
-    Q_JSON_ITEM_MEMBER(bool, audio_record, audioRecord);
-    Q_JSON_ITEM_MEMBER(bool, installed_apps, installedApps);
-    Q_JSON_PTR_PROPERTY(Filesystem, filesystem);
+    Q_SERIALIZE_CONSTRUCTOR(Permission)
+    Q_SERIALIZE_PROPERTY(bool, autostart);
+    Q_SERIALIZE_PROPERTY(bool, notification);
+    Q_SERIALIZE_PROPERTY(bool, trayicon);
+    Q_SERIALIZE_PROPERTY(bool, clipboard);
+    Q_SERIALIZE_PROPERTY(bool, account);
+    Q_SERIALIZE_PROPERTY(bool, bluetooth);
+    Q_SERIALIZE_PROPERTY(bool, camera);
+    Q_SERIALIZE_ITEM_MEMBER(bool, audio_record, audioRecord);
+    Q_SERIALIZE_ITEM_MEMBER(bool, installed_apps, installedApps);
+    Q_SERIALIZE_PTR_PROPERTY(Filesystem, filesystem);
 };
 
-class OverlayfsRootfs : public JsonSerialize
+class OverlayfsRootfs : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(OverlayfsRootfs)
-    Q_JSON_PROPERTY(MountList, mounts);
+    Q_SERIALIZE_CONSTRUCTOR(OverlayfsRootfs)
+    Q_SERIALIZE_PROPERTY(MountList, mounts);
 };
 
 /*!
  * Info is the data of /opt/apps/{package-id}/info.json. The spec can get from here:
  * https://doc.chinauos.com/content/M7kCi3QB_uwzIp6HyF5J
  */
-class Info : public JsonSerialize
+class Info : public Serialize
 {
     Q_OBJECT
-    Q_JSON_CONSTRUCTOR(Info)
+    Q_SERIALIZE_CONSTRUCTOR(Info)
 
 public:
-    Q_JSON_PROPERTY(QString, appid);
-    Q_JSON_PROPERTY(QString, version);
-    Q_JSON_PROPERTY(QStringList, arch);
-    Q_JSON_PROPERTY(QString, kind);
-    Q_JSON_PROPERTY(QString, name);
-    Q_JSON_PROPERTY(QString, module);
-    Q_JSON_PROPERTY(quint64, size);
-    Q_JSON_PROPERTY(QString, description);
+    Q_SERIALIZE_PROPERTY(QString, appid);
+    Q_SERIALIZE_PROPERTY(QString, version);
+    Q_SERIALIZE_PROPERTY(QStringList, arch);
+    Q_SERIALIZE_PROPERTY(QString, kind);
+    Q_SERIALIZE_PROPERTY(QString, name);
+    Q_SERIALIZE_PROPERTY(QString, module);
+    Q_SERIALIZE_PROPERTY(quint64, size);
+    Q_SERIALIZE_PROPERTY(QString, description);
 
     // ref of runtime
-    Q_JSON_PROPERTY(QString, runtime);
-    Q_JSON_PROPERTY(QString, base);
+    Q_SERIALIZE_PROPERTY(QString, runtime);
+    Q_SERIALIZE_PROPERTY(QString, base);
 
     // permissions
-    Q_JSON_PTR_PROPERTY(Permission, permissions);
+    Q_SERIALIZE_PTR_PROPERTY(Permission, permissions);
 
     //overlayfs mount
-    Q_JSON_PTR_PROPERTY(OverlayfsRootfs, overlayfs);
+    Q_SERIALIZE_PTR_PROPERTY(OverlayfsRootfs, overlayfs);
 
 };
 
 } // namespace package
 } // namespace linglong
 
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::package, Info)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::package, Permission)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::package, Filesystem)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::package, User)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::package, OverlayfsRootfs)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, Info)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, Permission)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, Filesystem)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, User)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, OverlayfsRootfs)
 
 // inline QDBusArgument &operator<<(QDBusArgument &argument, const linglong::package::Info &message)
 //{
@@ -137,4 +137,4 @@ Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::package, OverlayfsRootfs)
 //     return argument;
 // }
 
-#endif /* LINGLONG_BOX_SRC_MODULE_PACKAGE_INFO_H_ */
+#endif /* LINGLONG_SRC_MODULE_PACKAGE_INFO_H_ */

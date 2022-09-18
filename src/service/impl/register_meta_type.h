@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 #include "module/package/package.h"
 #include "reply.h"
 #include "param_option.h"
@@ -27,7 +27,7 @@ inline void registerAllMetaType()
     qDBusRegisterMetaType<linglong::service::InstallParamOption>();
     qDBusRegisterMetaType<linglong::service::QueryParamOption>();
     qDBusRegisterMetaType<linglong::service::UninstallParamOption>();
-    qDBusRegisterMetaType<ParamStringMap>();
+    qDBusRegisterMetaType<QStringMap>();
     qDBusRegisterMetaType<linglong::service::RunParamOption>();
     qDBusRegisterMetaType<linglong::service::ExecParamOption>();
 }

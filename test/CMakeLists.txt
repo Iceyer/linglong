@@ -53,8 +53,6 @@ set(LL_TEST_SOURCES
     ../src/module/repo/repo_client.cpp
     ../src/module/repo/repo_client.h
     ../src/module/runtime/container.cpp
-    ../src/module/runtime/container.cpp
-    ../src/module/runtime/oci.h
     ../src/module/runtime/oci.h
     ../src/module/util/config/config.h
     ../src/module/util/connection.cpp
@@ -66,7 +64,7 @@ set(LL_TEST_SOURCES
     ../src/module/util/http/http_client.cpp
     ../src/module/util/http/http_client.h
     ../src/module/util/httpclient.cpp
-    ../src/module/util/json.h
+    ../src/module/util/serialize/serialize.h
     ../src/module/util/sysinfo.cpp
     ../src/module/util/uuid.cpp
     ../src/module/util/xdg.cpp

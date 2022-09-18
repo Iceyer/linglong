@@ -14,7 +14,7 @@
 #include <mutex>
 
 #include "module/util/file.h"
-#include "module/util/yaml.h"
+#include "module/util/serialize/yaml.h"
 
 namespace linglong {
 
@@ -31,8 +31,8 @@ namespace config {
 
 void registerAllMetatype()
 {
-    qJsonRegister<linglong::config::Repo>();
-    qJsonRegister<linglong::config::Config>();
+    qSerializeRegister<linglong::config::Repo>();
+    qSerializeRegister<linglong::config::Config>();
 }
 
 Config::Config(QObject *parent)

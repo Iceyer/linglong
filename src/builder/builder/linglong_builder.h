@@ -43,16 +43,16 @@ public:
 };
 
 // TODO: remove later
-class message : public JsonSerialize
+class message : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(message)
+    Q_SERIALIZE_CONSTRUCTOR(message)
 public:
-    Q_JSON_PROPERTY(QString, type);
-    Q_JSON_PROPERTY(int, pid);
-    Q_JSON_PROPERTY(QString, arg0);
-    Q_JSON_PROPERTY(int, wstatus);
-    Q_JSON_PROPERTY(QString, information);
+    Q_SERIALIZE_PROPERTY(QString, type);
+    Q_SERIALIZE_PROPERTY(int, pid);
+    Q_SERIALIZE_PROPERTY(QString, arg0);
+    Q_SERIALIZE_PROPERTY(int, wstatus);
+    Q_SERIALIZE_PROPERTY(QString, information);
 };
 } // namespace builder
 } // namespace linglong

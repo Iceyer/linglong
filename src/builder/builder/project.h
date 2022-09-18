@@ -13,100 +13,101 @@
 #include <QObject>
 #include <QScopedPointer>
 
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 #include "module/package/ref.h"
 #include "module/package/package.h"
 
 namespace linglong {
 namespace builder {
 
-extern const char *DependTypeRuntime;
+const char *const kDependTypeRuntime = "runtime";
+const char *const kBuildScriptPath = "/entry.sh";
 
-extern const char *BuildScriptPath;
+const char *const kBuildCacheDirectoryName = "linglong-builder";
 
-extern const char *PackageKindApp;
-extern const char *PackageKindLib;
-extern const char *PackageKindRuntime;
+const char *const kPackageKindApp = "app";
+const char *const kPackageKindLib = "lib";
+const char *const kPackageKindRuntime = "runtime";
 
-class Variables : public JsonSerialize
+class Variables : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(Variables)
+    Q_SERIALIZE_CONSTRUCTOR(Variables)
 public:
-    Q_JSON_PROPERTY(QString, CC);
-    Q_JSON_PROPERTY(QString, CXX);
-    Q_JSON_PROPERTY(QString, NM);
-    Q_JSON_PROPERTY(QString, AR);
-    Q_JSON_PROPERTY(QString, CFLAGS);
-    Q_JSON_PROPERTY(QString, CXXFLAGS);
-    Q_JSON_PROPERTY(QString, LDFLAGS);
-    Q_JSON_PROPERTY(QString, id);
-    Q_JSON_PROPERTY(QString, triplet);
-    Q_JSON_PROPERTY(QString, build_dir);
-    Q_JSON_PROPERTY(QString, dest_dir);
-    Q_JSON_PROPERTY(QString, conf_args);
-    Q_JSON_PROPERTY(QString, extra_args);
-    Q_JSON_PROPERTY(QString, jobs);
+    Q_SERIALIZE_PROPERTY(QString, CC);
+    Q_SERIALIZE_PROPERTY(QString, CXX);
+    Q_SERIALIZE_PROPERTY(QString, NM);
+    Q_SERIALIZE_PROPERTY(QString, AR);
+    Q_SERIALIZE_PROPERTY(QString, CFLAGS);
+    Q_SERIALIZE_PROPERTY(QString, CXXFLAGS);
+    Q_SERIALIZE_PROPERTY(QString, LDFLAGS);
+    Q_SERIALIZE_PROPERTY(QString, id);
+    Q_SERIALIZE_PROPERTY(QString, triplet);
+    Q_SERIALIZE_PROPERTY(QString, build_dir);
+    Q_SERIALIZE_PROPERTY(QString, dest_dir);
+    Q_SERIALIZE_PROPERTY(QString, conf_args);
+    Q_SERIALIZE_PROPERTY(QString, extra_args);
+    Q_SERIALIZE_PROPERTY(QString, jobs);
 };
 
-class Package : public JsonSerialize
+class Package : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(Package)
+    Q_SERIALIZE_CONSTRUCTOR(Package)
 public:
-    Q_JSON_PROPERTY(QString, id);
-    Q_JSON_PROPERTY(QString, kind);
-    Q_JSON_PROPERTY(QString, name);
-    Q_JSON_PROPERTY(QString, version);
-    Q_JSON_PROPERTY(QString, description);
+    Q_SERIALIZE_PROPERTY(QString, id);
+    Q_SERIALIZE_PROPERTY(QString, kind);
+    Q_SERIALIZE_PROPERTY(QString, name);
+    Q_SERIALIZE_PROPERTY(QString, version);
+    Q_SERIALIZE_PROPERTY(QString, description);
 };
 
-class BuilderRuntime : public JsonSerialize
+class BuilderRuntime : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(BuilderRuntime)
+    Q_SERIALIZE_CONSTRUCTOR(BuilderRuntime)
 public:
-    Q_JSON_PROPERTY(QString, id);
-    Q_JSON_PROPERTY(QString, version);
-    //    Q_JSON_PROPERTY(QString, locale);
+    Q_SERIALIZE_PROPERTY(QString, id);
+    Q_SERIALIZE_PROPERTY(QString, version);
+    //    Q_SERIALIZE_PROPERTY(QString, locale);
 };
 
-class Source : public JsonSerialize
+class Source : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(Source)
+    Q_SERIALIZE_CONSTRUCTOR(Source)
 public:
-    Q_JSON_PROPERTY(QString, kind);
+    Q_SERIALIZE_PROPERTY(QString, kind);
 
     // diff with kind
-    Q_JSON_PROPERTY(QString, url);
+    Q_SERIALIZE_PROPERTY(QString, url);
     //! the unique id of digest
-    Q_JSON_PROPERTY(QString, digest);
-    Q_JSON_PROPERTY(QString, version);
+    Q_SERIALIZE_PROPERTY(QString, digest);
+    Q_SERIALIZE_PROPERTY(QString, version);
 
     // git
-    Q_JSON_PROPERTY(QString, commit);
+    Q_SERIALIZE_PROPERTY(QString, commit);
 
-    Q_JSON_PROPERTY(QStringList, patch);
+    Q_SERIALIZE_PROPERTY(QStringList, patch);
 };
 
-class BuildManual : public JsonSerialize
+class BuildManual : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(BuildManual)
+    Q_SERIALIZE_CONSTRUCTOR(BuildManual)
 public:
-    Q_JSON_PROPERTY(QString, configure);
-    Q_JSON_PROPERTY(QString, build);
-    Q_JSON_PROPERTY(QString, install);
+    Q_SERIALIZE_PROPERTY(QString, configure);
+    Q_SERIALIZE_PROPERTY(QString, build);
+    Q_SERIALIZE_PROPERTY(QString, install);
 };
 
-class Build : public JsonSerialize
+class Build : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(Build)
+    Q_SERIALIZE_CONSTRUCTOR(Build)
 public:
-    Q_JSON_PROPERTY(QString, kind);
-    Q_JSON_PTR_PROPERTY(BuildManual, manual);
+    Q_SERIALIZE_PROPERTY(QString, kind);
+    Q_SERIALIZE_PTR_PROPERTY(BuildManual, manual);
 };
 
 } // namespace builder
@@ -115,35 +116,35 @@ public:
 namespace linglong {
 namespace builder {
 
-class BuildDepend : public JsonSerialize
+class BuildDepend : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(BuildDepend)
+    Q_SERIALIZE_CONSTRUCTOR(BuildDepend)
 public:
-    Q_JSON_PROPERTY(QString, id);
-    Q_JSON_PROPERTY(QString, version);
-    Q_JSON_PROPERTY(QString, type);
+    Q_SERIALIZE_PROPERTY(QString, id);
+    Q_SERIALIZE_PROPERTY(QString, version);
+    Q_SERIALIZE_PROPERTY(QString, type);
 
-    Q_JSON_PTR_PROPERTY(Variables, variables);
-    Q_JSON_PTR_PROPERTY(Source, source);
-    Q_JSON_PTR_PROPERTY(Build, build);
+    Q_SERIALIZE_PTR_PROPERTY(Variables, variables);
+    Q_SERIALIZE_PTR_PROPERTY(Source, source);
+    Q_SERIALIZE_PTR_PROPERTY(Build, build);
 };
 } // namespace builder
 } // namespace linglong
 
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, BuildDepend)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, Variables)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, Package)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, BuilderRuntime)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, Source)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, Build)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, BuildManual)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, BuildDepend)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, Variables)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, Package)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, BuilderRuntime)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, Source)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, Build)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, BuildManual)
 
 namespace linglong {
 namespace builder {
 
 class ProjectPrivate;
-class Project : public JsonSerialize
+class Project : public Serialize
 {
     Q_OBJECT;
 
@@ -152,14 +153,14 @@ public:
     ~Project() override;
 
 public:
-    Q_JSON_PTR_PROPERTY(Variables, variables);
-    Q_JSON_PTR_PROPERTY(Package, package);
-    Q_JSON_PTR_PROPERTY(BuilderRuntime, runtime);
-    Q_JSON_PTR_PROPERTY(BuilderRuntime, base);
+    Q_SERIALIZE_PTR_PROPERTY(Variables, variables);
+    Q_SERIALIZE_PTR_PROPERTY(Package, package);
+    Q_SERIALIZE_PTR_PROPERTY(BuilderRuntime, runtime);
+    Q_SERIALIZE_PTR_PROPERTY(BuilderRuntime, base);
     // WARNING: the default meta id is expanded form here, so keep it as full of namespace.
-    Q_JSON_PROPERTY(linglong::builder::BuildDependList, depends);
-    Q_JSON_PTR_PROPERTY(Source, source);
-    Q_JSON_PTR_PROPERTY(Build, build);
+    Q_SERIALIZE_PROPERTY(linglong::builder::BuildDependList, depends);
+    Q_SERIALIZE_PTR_PROPERTY(Source, source);
+    Q_SERIALIZE_PTR_PROPERTY(Build, build);
 
 public:
     package::Ref ref() const;
@@ -190,8 +191,7 @@ public:
         QString cacheAbsoluteFilePath(const QStringList &filenames) const;
         QString cacheRuntimePath(const QString &subPath) const;
         QString cacheInstallPath(const QString &subPath) const;
-        QString cacheInstallPath(const QString &moduleDir,const QString &subPath) const;
-
+        QString cacheInstallPath(const QString &moduleDir, const QString &subPath) const;
 
         QString targetArch() const;
 
@@ -214,22 +214,22 @@ private:
     Q_DECLARE_PRIVATE_D(qGetPtrHelper(dd_ptr), Project)
 };
 
-package::Ref fuzzyRef(const JsonSerialize *obj);
+package::Ref fuzzyRef(const Serialize *obj);
 
 } // namespace builder
 } // namespace linglong
 
 namespace linglong {
 namespace builder {
-class Template : public JsonSerialize
+class Template : public Serialize
 {
     Q_OBJECT;
 
 public:
-    Q_JSON_PTR_PROPERTY(Variables, variables);
-    Q_JSON_PTR_PROPERTY(Build, build);
+    Q_SERIALIZE_PTR_PROPERTY(Variables, variables);
+    Q_SERIALIZE_PTR_PROPERTY(Build, build);
 };
 } // namespace builder
 } // namespace linglong
 
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::builder, Project)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::builder, Project)

@@ -16,22 +16,13 @@
 #include "module/util/uuid.h"
 #include "module/util/file.h"
 #include "module/util/sysinfo.h"
-#include "module/util/yaml.h"
+#include "module/util/serialize/yaml.h"
 #include "module/package/ref.h"
 
 #include "builder_config.h"
 
 namespace linglong {
 namespace builder {
-
-const char *DependTypeRuntime = "runtime";
-
-const char *BuildScriptPath = "/entry.sh";
-const char *BuildCacheDirectoryName = "linglong-builder";
-
-const char *PackageKindApp = "app";
-const char *PackageKindLib = "lib";
-const char *PackageKindRuntime = "runtime";
 
 class ProjectPrivate
 {
@@ -124,23 +115,24 @@ public:
         }
 
         command += "#local variable\n";
-        for (int i = q_ptr->variables->metaObject()->propertyOffset(); i < q_ptr->variables->metaObject()->propertyCount(); ++i) {
+        for (int i = q_ptr->variables->metaObject()->propertyOffset();
+             i < q_ptr->variables->metaObject()->propertyCount(); ++i) {
             auto propertyName = q_ptr->variables->metaObject()->property(i).name();
             if (q_ptr->variables->property(propertyName).toString().isNull()) {
-                command += QString("%1=\"%2\"\n")
-                               .arg(propertyName)
-                               .arg(temp->variables->property(propertyName).toString());
+                command +=
+                    QString("%1=\"%2\"\n").arg(propertyName).arg(temp->variables->property(propertyName).toString());
             } else {
-                command += QString("%1=\"%2\"\n")
-                               .arg(propertyName)
-                               .arg(q_ptr->variables->property(propertyName).toString());
+                command +=
+                    QString("%1=\"%2\"\n").arg(propertyName).arg(q_ptr->variables->property(propertyName).toString());
             }
         }
 
         command += "#build commands\n";
-        command += q_ptr->build->manual->configure.isNull() ? temp->build->manual->configure : q_ptr->build->manual->configure;
+        command +=
+            q_ptr->build->manual->configure.isNull() ? temp->build->manual->configure : q_ptr->build->manual->configure;
         command += q_ptr->build->manual->build.isNull() ? temp->build->manual->build : q_ptr->build->manual->build;
-        command += q_ptr->build->manual->install.isNull() ? temp->build->manual->install : q_ptr->build->manual->install;
+        command +=
+            q_ptr->build->manual->install.isNull() ? temp->build->manual->install : q_ptr->build->manual->install;
 
         command += "\n";
         // strip script
@@ -172,7 +164,7 @@ void Project::generateBuildScript()
     // TODO: how to define an build task
     auto cacheDirectory = config().cacheAbsoluteFilePath({"tmp"});
     util::ensureDir(cacheDirectory);
-    auto scriptPath = cacheDirectory + BuildScriptPath;
+    auto scriptPath = cacheDirectory + kBuildScriptPath;
     dd_ptr->generateBuildScript(scriptPath);
     dd_ptr->scriptPath = scriptPath;
 
@@ -188,7 +180,7 @@ QString Project::buildScriptPath() const
 }
 
 Project::Project(QObject *parent)
-    : JsonSerialize(parent)
+    : Serialize(parent)
 {
 }
 
@@ -206,7 +198,6 @@ package::Ref Project::refWithModule(const QString &module) const
 {
     return dd_ptr->refWithModule(module);
 }
-
 
 const Project::Config &Project::config() const
 {
@@ -264,11 +255,11 @@ QString Project::Config::cacheRuntimePath(const QString &subPath) const
 
 QString Project::Config::cacheInstallPath(const QString &subPath) const
 {
-    if (PackageKindRuntime == m_project->package->kind) {
+    if (kPackageKindRuntime == m_project->package->kind) {
         return cacheAbsoluteFilePath({"runtime-install", subPath});
-    } else if (PackageKindLib == m_project->package->kind) {
+    } else if (kPackageKindLib == m_project->package->kind) {
         return cacheAbsoluteFilePath({"runtime-install", subPath});
-    } else if (PackageKindApp == m_project->package->kind) {
+    } else if (kPackageKindApp == m_project->package->kind) {
         return cacheAbsoluteFilePath({"runtime-install", subPath});
     };
     return "";
@@ -276,11 +267,11 @@ QString Project::Config::cacheInstallPath(const QString &subPath) const
 
 QString Project::Config::cacheInstallPath(const QString &moduleDir, const QString &subPath) const
 {
-    if (PackageKindRuntime == m_project->package->kind) {
+    if (kPackageKindRuntime == m_project->package->kind) {
         return cacheAbsoluteFilePath({moduleDir, subPath});
-    } else if (PackageKindLib == m_project->package->kind) {
+    } else if (kPackageKindLib == m_project->package->kind) {
         return cacheAbsoluteFilePath({moduleDir, subPath});
-    } else if (PackageKindApp == m_project->package->kind) {
+    } else if (kPackageKindApp == m_project->package->kind) {
         return cacheAbsoluteFilePath({moduleDir, subPath});
     };
     return "";
@@ -293,13 +284,13 @@ QString Project::Config::targetArch() const
 
 QString Project::Config::targetInstallPath(const QString &sub) const
 {
-    if (PackageKindRuntime == m_project->package->kind) {
+    if (kPackageKindRuntime == m_project->package->kind) {
         return (sub.isEmpty() ? QString("/runtime") : QStringList {"/runtime", sub}.join("/"));
-    } else if (PackageKindLib == m_project->package->kind) {
+    } else if (kPackageKindLib == m_project->package->kind) {
         return (sub.isEmpty() ? QString("/runtime") : QStringList {"/runtime", sub}.join("/"));
-    } else if (PackageKindApp == m_project->package->kind) {
-        return (sub.isEmpty() ? QString(QString("/opt/apps/%1/files").arg(m_project->ref().appId)) :
-                QStringList {QString("/opt/apps/%1/files").arg(m_project->ref().appId), sub}.join("/"));
+    } else if (kPackageKindApp == m_project->package->kind) {
+        return (sub.isEmpty() ? QString(QString("/opt/apps/%1/files").arg(m_project->ref().appId))
+                              : QStringList {QString("/opt/apps/%1/files").arg(m_project->ref().appId), sub}.join("/"));
     };
     return "";
 }

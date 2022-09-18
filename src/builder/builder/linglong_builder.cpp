@@ -21,7 +21,7 @@
 #include <QTemporaryFile>
 #include <QThread>
 
-#include "module/util/yaml.h"
+#include "module/util/serialize/yaml.h"
 #include "module/util/uuid.h"
 #include "module/util/xdg.h"
 #include "module/runtime/oci.h"
@@ -51,7 +51,7 @@ linglong::util::Error commitBuildOutput(Project *project, AnnotationsOverlayfsRo
 
     auto lowerDir = project->config().cacheAbsoluteFilePath({"overlayfs", "lower"});
     // if combine runtime, lower is ${PROJECT_CACHE}/runtime/files
-    if (PackageKindRuntime == project->package->kind) {
+    if (kPackageKindRuntime == project->package->kind) {
         lowerDir = project->config().cacheAbsoluteFilePath({"runtime", "files"});
     }
     linglong::util::ensureDir(lowerDir);
@@ -218,7 +218,7 @@ linglong::util::Error commitBuildOutput(Project *project, AnnotationsOverlayfsRo
     return ret;
 };
 
-package::Ref fuzzyRef(const JsonSerialize *obj)
+package::Ref fuzzyRef(const Serialize *obj)
 {
     if (!obj) {
         return package::Ref("");
@@ -609,7 +609,7 @@ linglong::util::Error LinglongBuilder::buildFlow(Project *project)
 
     QList<QPair<QString, QString>> mountMap = {
         {sf.sourceRoot(), containerSourcePath},
-        {project->buildScriptPath(), BuildScriptPath},
+        {project->buildScriptPath(), kBuildScriptPath},
     };
 
     for (const auto &pair : mountMap) {
@@ -620,7 +620,7 @@ linglong::util::Error LinglongBuilder::buildFlow(Project *project)
         r->mounts.push_back(m);
     }
 
-    r->process->args = QStringList {"/bin/bash", "-e", BuildScriptPath};
+    r->process->args = QStringList {"/bin/bash", "-e", kBuildScriptPath};
     r->process->cwd = containerSourcePath;
     r->process->env.push_back(
         "PATH=/runtime/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/games:/usr/games:/sbin:/usr/sbin");

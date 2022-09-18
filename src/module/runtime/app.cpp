@@ -20,9 +20,9 @@
 #include <QStandardPaths>
 #include <QDir>
 
-#include "module/util/yaml.h"
+#include "module/util/serialize/yaml.h"
 #include "module/util/uuid.h"
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 #include "module/util/file.h"
 #include "module/util/xdg.h"
 #include "module/util/desktop_entry.h"
@@ -1013,8 +1013,8 @@ public:
 
     bool useFlatpakRuntime = false;
     QString desktopExec = nullptr;
-    ParamStringMap envMap;
-    ParamStringMap runParamMap;
+    QStringMap envMap;
+    QStringMap runParamMap;
 
     Container *container = nullptr;
     Runtime *r = nullptr;
@@ -1029,7 +1029,7 @@ public:
 };
 
 App::App(QObject *parent)
-    : JsonSerialize(parent)
+    : Serialize(parent)
     , dd_ptr(new AppPrivate(this))
 {
 }
@@ -1168,7 +1168,7 @@ void App::saveUserEnvList(const QStringList &userEnvList)
     }
 }
 
-void App::setAppParamMap(const ParamStringMap &paramMap)
+void App::setAppParamMap(const QStringMap &paramMap)
 {
     Q_D(App);
     d->runParamMap = paramMap;

@@ -11,12 +11,12 @@
 #pragma once
 
 #include "module/util/serialize/serialize.h"
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 
 namespace linglong {
 namespace repo {
 
-class Pair : public JsonSerialize
+class Pair : public Serialize
 {
     Q_OBJECT;
     Q_SERIALIZE_CONSTRUCTOR(Pair);
@@ -34,7 +34,7 @@ Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, Pair)
 namespace linglong {
 namespace repo {
 
-class UploadTaskRequest : public JsonSerialize
+class UploadTaskRequest : public Serialize
 {
     Q_OBJECT;
     Q_SERIALIZE_CONSTRUCTOR(UploadTaskRequest)

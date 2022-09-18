@@ -24,13 +24,13 @@
 namespace linglong {
 namespace repo {
 
-class Response : public JsonSerialize
+class Response : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(Response)
-    Q_JSON_PROPERTY(int, code);
-    Q_JSON_PROPERTY(QString, msg);
-    Q_JSON_PROPERTY(linglong::package::AppMetaInfoList, data);
+    Q_SERIALIZE_CONSTRUCTOR(Response)
+    Q_SERIALIZE_PROPERTY(int, code);
+    Q_SERIALIZE_PROPERTY(QString, msg);
+    Q_SERIALIZE_PROPERTY(linglong::package::AppMetaInfoList, data);
 };
 
 class RepoClient
@@ -47,6 +47,6 @@ private:
 } // namespace repo
 } // namespace linglong
 
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::repo, Response)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, Response)
 
 #endif // LINGLONG_SRC_MODULE_REPO_REPO_CLIENT_H_

@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef LINGLONG_BOX_SRC_MODULE_PACKAGE_REF_H_
-#define LINGLONG_BOX_SRC_MODULE_PACKAGE_REF_H_
+#ifndef LINGLONG_SRC_MODULE_PACKAGE_REF_H_
+#define LINGLONG_SRC_MODULE_PACKAGE_REF_H_
 
 #include <QString>
 
@@ -98,11 +98,9 @@ public:
 
 private:
     void autoFill();
-    // TODO: now is app/runtime
-    QString classify;
 };
 
 } // namespace package
 } // namespace linglong
 
-#endif /* LINGLONG_BOX_SRC_MODULE_PACKAGE_REF_H_ */
+#endif /* LINGLONG_SRC_MODULE_PACKAGE_REF_H_ */

@@ -22,11 +22,11 @@ inline void registerAllMetaType()
 {
     registerAllOciMetaType();
 
-    qJsonRegister<Layer>();
-    qJsonRegister<MountYaml>();
-    qJsonRegister<AppPermission>();
-    qJsonRegister<App>();
-    qJsonRegister<Container>();
+    qSerializeRegister<Layer>();
+    qSerializeRegister<MountYaml>();
+    qSerializeRegister<AppPermission>();
+    qSerializeRegister<App>();
+    qSerializeRegister<Container>();
 }
 
 } // namespace runtime

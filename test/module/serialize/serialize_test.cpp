@@ -19,8 +19,8 @@ void serializeRegister()
 {
     static std::once_flag flag;
     std::call_once(flag, []() {
-        qJsonRegister<linglong::repo::Pair>();
-        qJsonRegister<linglong::repo::UploadTaskRequest>();
+        qSerializeRegister<linglong::repo::Pair>();
+        qSerializeRegister<linglong::repo::UploadTaskRequest>();
     });
 }
 

@@ -37,7 +37,7 @@
  * @brief 注册 QT 对象类型
  *
  */
-static void qJsonRegisterAll()
+static void qSerializeRegisterAll()
 {
     linglong::package::registerAllMetaType();
     linglong::runtime::registerAllMetaType();
@@ -199,7 +199,7 @@ int main(int argc, char **argv)
     LOG_HANDLER->installMessageHandler();
 
     // 注册 QT 对象类型
-    qJsonRegisterAll();
+    qSerializeRegisterAll();
 
     QCommandLineParser parser;
     parser.addHelpOption();

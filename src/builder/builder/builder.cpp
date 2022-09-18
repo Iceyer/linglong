@@ -14,12 +14,12 @@
 
 void linglong::builder::registerAllMetaType()
 {
-    qJsonRegister<linglong::builder::BuildDepend>();
-    qJsonRegister<linglong::builder::Project>();
-    qJsonRegister<linglong::builder::Variables>();
-    qJsonRegister<linglong::builder::Package>();
-    qJsonRegister<linglong::builder::BuilderRuntime>();
-    qJsonRegister<linglong::builder::Source>();
-    qJsonRegister<linglong::builder::Build>();
-    qJsonRegister<linglong::builder::BuildManual>();
+    qSerializeRegister<linglong::builder::BuildDepend>();
+    qSerializeRegister<linglong::builder::Project>();
+    qSerializeRegister<linglong::builder::Variables>();
+    qSerializeRegister<linglong::builder::Package>();
+    qSerializeRegister<linglong::builder::BuilderRuntime>();
+    qSerializeRegister<linglong::builder::Source>();
+    qSerializeRegister<linglong::builder::Build>();
+    qSerializeRegister<linglong::builder::BuildManual>();
 }

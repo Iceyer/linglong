@@ -88,12 +88,5 @@ private:
     int Build = 0;
 };
 
-// inline std::ostream &operator<<(std::ostream &o, const linglong::AppVersion &ver)
-// {
-//     return o << ver.Major << "."
-//              << ver.Minor << "."
-//              << ver.Revision << "."
-//              << ver.Build;
-// }
 } // namespace util
 } // namespace linglong

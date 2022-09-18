@@ -14,9 +14,9 @@
 
 TEST(Serialize, YAML_NS)
 {
-    qJsonRegister<linglong::test::MountRule>();
-    qJsonRegister<linglong::test::Permission>();
-    qJsonRegister<linglong::test::App>();
+    qSerializeRegister<linglong::test::MountRule>();
+    qSerializeRegister<linglong::test::Permission>();
+    qSerializeRegister<linglong::test::App>();
 
     auto path = "../../test/data/demo/app.yml";
     YAML::Node doc = YAML::LoadFile(path);
@@ -30,9 +30,9 @@ TEST(Serialize, YAML)
 {
     linglong::runtime::registerAllOciMetaType();
 
-    qJsonRegister<TestMount>();
-    qJsonRegister<TestPermission>();
-    qJsonRegister<TestApp>();
+    qSerializeRegister<TestMount>();
+    qSerializeRegister<TestPermission>();
+    qSerializeRegister<TestApp>();
 
     auto path = "../../test/data/demo/app.yml";
     YAML::Node doc = YAML::LoadFile(path);

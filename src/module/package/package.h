@@ -23,7 +23,7 @@
 #include <QFileInfo>
 
 #include "module/util/file.h"
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 #include "module/util/status_code.h"
 #include "ref.h"
 
@@ -31,34 +31,34 @@
 namespace linglong {
 namespace package {
 
-class AppMetaInfo : public JsonSerialize
+class AppMetaInfo : public Serialize
 {
     Q_OBJECT
-    Q_JSON_CONSTRUCTOR(AppMetaInfo)
+    Q_SERIALIZE_CONSTRUCTOR(AppMetaInfo)
 
 public:
-    Q_JSON_PROPERTY(QString, appId);
-    Q_JSON_PROPERTY(QString, name);
-    Q_JSON_PROPERTY(QString, version);
-    Q_JSON_PROPERTY(QString, arch);
+    Q_SERIALIZE_PROPERTY(QString, appId);
+    Q_SERIALIZE_PROPERTY(QString, name);
+    Q_SERIALIZE_PROPERTY(QString, version);
+    Q_SERIALIZE_PROPERTY(QString, arch);
     // app 类型
-    Q_JSON_PROPERTY(QString, kind);
-    Q_JSON_PROPERTY(QString, runtime);
+    Q_SERIALIZE_PROPERTY(QString, kind);
+    Q_SERIALIZE_PROPERTY(QString, runtime);
     // 软件包对应的uab存储地址
-    Q_JSON_PROPERTY(QString, uabUrl);
+    Q_SERIALIZE_PROPERTY(QString, uabUrl);
     // app 所属远端仓库名称
-    Q_JSON_PROPERTY(QString, repoName);
+    Q_SERIALIZE_PROPERTY(QString, repoName);
     // app 描述
-    Q_JSON_PROPERTY(QString, description);
+    Q_SERIALIZE_PROPERTY(QString, description);
     // 安装应用对应的用户
-    Q_JSON_PROPERTY(QString, user);
+    Q_SERIALIZE_PROPERTY(QString, user);
 
     // app 大小
-    Q_JSON_PROPERTY(QString, size);
+    Q_SERIALIZE_PROPERTY(QString, size);
     // app 渠道
-    Q_JSON_PROPERTY(QString, channel);
+    Q_SERIALIZE_PROPERTY(QString, channel);
     // app 版本类型 devel/release
-    Q_JSON_PROPERTY(QString, module);
+    Q_SERIALIZE_PROPERTY(QString, module);
 
 public:
     inline package::Ref ref() { return package::Ref("", channel, appId, version, arch, module); }
@@ -67,9 +67,9 @@ public:
 } // namespace package
 } // namespace linglong
 
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::package, AppMetaInfo)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, AppMetaInfo)
 
-typedef StringMap ParamStringMap;
+typedef QStringMap QStringMap;
 
 namespace linglong {
 namespace package {

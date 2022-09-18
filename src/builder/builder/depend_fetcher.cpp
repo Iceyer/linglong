@@ -72,7 +72,7 @@ linglong::util::Error DependFetcher::fetch(const QString &subPath, const QString
         return NewError(ret, -1, QString("ostree checkout %1 failed").arg(dependRef.toLocalRefString()));
     }
     // for app,lib. if the dependType match runtime, should be submitted together.
-    if (dd_ptr->dependType == DependTypeRuntime) {
+    if (dd_ptr->dependType == kDependTypeRuntime) {
         auto targetInstallPath = dd_ptr->project->config().cacheAbsoluteFilePath(
             {"overlayfs", "up", dd_ptr->project->config().targetInstallPath("")});
 

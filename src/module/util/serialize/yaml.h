@@ -15,9 +15,8 @@
 #include <QString>
 #include <QVariant>
 #include <QJsonValue>
-#include <QDebug>
 
-#include "module/util/json.h"
+#include "module/util/serialize/serialize.h"
 
 namespace YAML {
 
@@ -126,7 +125,7 @@ T *formYaml(const YAML::Node &doc)
             switch (v.type()) {
             case QVariant::Map: {
                 auto map = v.toMap();
-                map[Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(m);
+                map[__Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(m);
                 m->setProperty(k, map);
                 break;
             }

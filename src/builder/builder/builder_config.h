@@ -15,7 +15,7 @@
 #include <QStandardPaths>
 
 #include "module/util/singleton.h"
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 
 namespace linglong {
 namespace builder {
@@ -27,12 +27,12 @@ class BuilderConfig : public Serialize
 {
     Q_OBJECT;
     // FIXME: it seam an fake singleton, and ref to fromVariant may fix this.
-    Q_JSON_CONSTRUCTOR(BuilderConfig)
+    Q_SERIALIZE_CONSTRUCTOR(BuilderConfig)
 public:
     static BuilderConfig *instance();
 
-    Q_JSON_PROPERTY(QString, remoteRepoEndpoint);
-    Q_JSON_PROPERTY(QString, remoteRepoName);
+    Q_SERIALIZE_PROPERTY(QString, remoteRepoEndpoint);
+    Q_SERIALIZE_PROPERTY(QString, remoteRepoName);
 
     QString repoPath() const;
 

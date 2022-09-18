@@ -24,11 +24,11 @@ namespace repo {
 
 void registerAllMetaType()
 {
-    qJsonRegister<ParamStringMap>();
-    qJsonRegister<linglong::repo::InfoResponse>();
-    qJsonRegister<linglong::repo::Response>();
-    qJsonRegister<linglong::repo::RevPair>();
-    qJsonRegister<linglong::repo::UploadTaskRequest>();
+    qSerializeRegister<QStringMap>();
+    qSerializeRegister<linglong::repo::InfoResponse>();
+    qSerializeRegister<linglong::repo::Response>();
+    qSerializeRegister<linglong::repo::RevPair>();
+    qSerializeRegister<linglong::repo::UploadTaskRequest>();
 }
 
 } // namespace repo

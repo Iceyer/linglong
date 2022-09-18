@@ -14,25 +14,21 @@
 #include <QMetaProperty>
 #include <QObject>
 #include <QDBusArgument>
+#include <QDBusMetaType>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
-#include <QDBusMetaType>
-#include <QDebug>
-#include <QFile>
 
-#define Q_SERIALIZE_PARENT_KEY "7bdcaad1-2f27-4092-a5cf-4919ad4caf2b"
+#define __Q_SERIALIZE_PARENT_KEY "7bdcaad1-2f27-4092-a5cf-4919ad4caf2b"
 
-#define Q_SERIALIZE_CONSTRUCTOR(TYPE) \
+#define __Q_SERIALIZE_CONSTRUCTOR(TYPE) \
 public: \
     explicit TYPE(QObject *parent = nullptr) \
         : Serialize(parent) \
     { \
     }
 
-#define Q_SERIALIZE_PROPERTY(TYPE, PROP) Q_SERIALIZE_ITEM_MEMBER(TYPE, PROP, PROP)
-
-#define Q_SERIALIZE_ITEM_MEMBER(TYPE, PROP, MEMBER_NAME) \
+#define __Q_SERIALIZE_ITEM_MEMBER(TYPE, PROP, MEMBER_NAME) \
 public: \
     Q_PROPERTY(TYPE PROP MEMBER MEMBER_NAME READ get##PROP WRITE set##PROP); \
     TYPE get##PROP() const \
@@ -47,9 +43,7 @@ public: \
 public: \
     TYPE MEMBER_NAME = TYPE();
 
-#define Q_SERIALIZE_PTR_PROPERTY(TYPE, PROP) Q_SERIALIZE_ITEM_MEMBER_PTR(TYPE, PROP, PROP)
-
-#define Q_SERIALIZE_ITEM_MEMBER_PTR(TYPE, PROP, MEMBER_NAME) \
+#define __Q_SERIALIZE_ITEM_MEMBER_PTR(TYPE, PROP, MEMBER_NAME) \
 public: \
     Q_PROPERTY(TYPE *PROP MEMBER MEMBER_NAME READ get##PROP WRITE set##PROP); \
     TYPE *get##PROP() const \
@@ -68,7 +62,7 @@ template<typename T>
 static T *fromVariant(const QVariant &v)
 {
     auto map = v.toMap();
-    auto parent = qvariant_cast<QObject *>(map[Q_SERIALIZE_PARENT_KEY]);
+    auto parent = qvariant_cast<QObject *>(map[__Q_SERIALIZE_PARENT_KEY]);
     auto m = new T(parent);
     auto mo = m->metaObject();
     for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
@@ -78,7 +72,7 @@ static T *fromVariant(const QVariant &v)
             switch (map[k].type()) {
             case QVariant::Map: {
                 auto value = map[k].toMap();
-                value[Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(m);
+                value[__Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(m);
                 m->setProperty(k, value);
                 break;
             }
@@ -119,7 +113,7 @@ inline void qSerializeRegister()
 {
 }
 
-#define Q_SERIALIZE_DECLARE_TYPE(TYPE) \
+#define __Q_SERIALIZE_DECLARE_TYPE(TYPE) \
     class TYPE##List : public QList<QPointer<TYPE>> \
     { \
     public: \
@@ -175,7 +169,7 @@ inline void qSerializeRegister()
         return argument; \
     }
 
-#define Q_SERIALIZE_DECLARE_LIST_MAP_METATYPE(TYPE, TYPE_LIST, TYPE_STR_MAP) \
+#define __Q_SERIALIZE_DECLARE_LIST_MAP_METATYPE(TYPE, TYPE_LIST, TYPE_STR_MAP) \
     Q_DECLARE_METATYPE(TYPE *) \
     Q_DECLARE_METATYPE(TYPE_LIST) \
     Q_DECLARE_METATYPE(TYPE_STR_MAP) \
@@ -201,11 +195,11 @@ inline void qSerializeRegister()
 \
         QMetaType::registerConverter<QVariantMap, TYPE_STR_MAP>([](QVariantMap variantMap) -> TYPE_STR_MAP { \
             TYPE_STR_MAP vMap; \
-            auto parent = qvariant_cast<QObject *>(variantMap.take(Q_SERIALIZE_PARENT_KEY)); \
+            auto parent = qvariant_cast<QObject *>(variantMap.take(__Q_SERIALIZE_PARENT_KEY)); \
 \
             for (const auto &key : variantMap.keys()) { \
                 auto v = variantMap[key].toMap(); \
-                v[Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(parent); \
+                v[__Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(parent); \
                 vMap[key] = fromVariant<TYPE>(v); \
             } \
             return vMap; \
@@ -226,7 +220,7 @@ inline void qSerializeRegister()
             } \
             for (const auto &v : list) { \
                 auto map = v.toMap(); \
-                map[Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(parent); \
+                map[__Q_SERIALIZE_PARENT_KEY] = QVariant::fromValue(parent); \
                 vList.push_back(QPointer<TYPE>(fromVariant<TYPE>(map))); \
             } \
             return vList; \
@@ -240,18 +234,36 @@ inline void qSerializeRegister()
         }); \
     }
 
-#define Q_SERIALIZE_DECLARE_METATYPE(TYPE) Q_SERIALIZE_DECLARE_LIST_MAP_METATYPE(TYPE, TYPE##List, TYPE##StrMap)
-#define Q_SERIALIZE_DECLARE_METATYPE_NM(NM, TYPE) \
-    Q_SERIALIZE_DECLARE_LIST_MAP_METATYPE(NM::TYPE, NM::TYPE##List, NM::TYPE##StrMap)
+#define Q_SERIALIZE_CONSTRUCTOR(TYPE) __Q_SERIALIZE_CONSTRUCTOR(TYPE)
 
+//! add raw type or qt type like int/QString/QStringList/QStringMap to a property
+//! and also add Serialize QObject type list or map to a property
+#define Q_SERIALIZE_PROPERTY(TYPE, PROP) __Q_SERIALIZE_ITEM_MEMBER(TYPE, PROP, PROP)
+
+//! add a Serialize QObject to a property
+#define Q_SERIALIZE_PTR_PROPERTY(TYPE, PROP) __Q_SERIALIZE_ITEM_MEMBER_PTR(TYPE, PROP, PROP)
+
+//! allow set custom key name with NUMBER_NAME
+#define Q_SERIALIZE_ITEM_MEMBER(TYPE, PROP, MEMBER_NAME) __Q_SERIALIZE_ITEM_MEMBER(TYPE, PROP, MEMBER_NAME)
+#define Q_SERIALIZE_ITEM_MEMBER_PTR(TYPE, PROP, MEMBER_NAME) __Q_SERIALIZE_ITEM_MEMBER_PTR(TYPE, PROP, MEMBER_NAME)
+
+//! declare extent type like QList<QPointer<Type>> and QMap<QString,Type>
+#define Q_SERIALIZE_DECLARE_TYPE(TYPE) __Q_SERIALIZE_DECLARE_TYPE(TYPE)
+
+//! declare metatype
+#define Q_SERIALIZE_DECLARE_METATYPE(TYPE) __Q_SERIALIZE_DECLARE_LIST_MAP_METATYPE(TYPE, TYPE##List, TYPE##StrMap)
+#define Q_SERIALIZE_DECLARE_METATYPE_NM(NM, TYPE) \
+    __Q_SERIALIZE_DECLARE_LIST_MAP_METATYPE(NM::TYPE, NM::TYPE##List, NM::TYPE##StrMap)
+
+//! declare extent type and metatype
 #define Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(NM, TYPE) \
     namespace NM { \
-    Q_SERIALIZE_DECLARE_TYPE(TYPE) \
+    __Q_SERIALIZE_DECLARE_TYPE(TYPE) \
     } \
     Q_SERIALIZE_DECLARE_METATYPE_NM(NM, TYPE)
 
 #define Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE(TYPE) \
-    Q_SERIALIZE_DECLARE_TYPE(TYPE) \
+    __Q_SERIALIZE_DECLARE_TYPE(TYPE) \
     Q_SERIALIZE_DECLARE_METATYPE(TYPE)
 
 template<typename T>
@@ -275,7 +287,44 @@ QVariant toVariant(const T *m)
     return map;
 }
 
-typedef QMap<QString, QString> StringMap;
-Q_DECLARE_METATYPE(StringMap)
+typedef QMap<QString, QString> QStringMap;
+Q_DECLARE_METATYPE(QStringMap)
+
+class Serialize : public QObject
+{
+    Q_OBJECT
+protected:
+    explicit Serialize(QObject *parent = nullptr)
+        : QObject(parent)
+    {
+    }
+
+public:
+    QStringList keys() const
+    {
+        QStringList jsonKeys;
+        auto mo = this->metaObject();
+        for (int i = mo->propertyOffset(); i < mo->propertyCount(); ++i) {
+            jsonKeys.push_back(mo->property(i).name());
+        }
+        return jsonKeys;
+    }
+
+    template<typename T>
+    static QJsonValue toJson(T *m)
+    {
+        return toVariant<T>(m).toJsonValue();
+    }
+
+    template<typename T>
+    static QByteArray dump(T *m)
+    {
+        QJsonDocument doc(toJson(m).toObject());
+        return doc.toJson();
+    }
+
+public:
+    virtual void onPostSerialize() { }
+};
 
 #endif // LINGLONG_SRC_MODULE_UTIL_SERIALIZE_SERIALIZE_H

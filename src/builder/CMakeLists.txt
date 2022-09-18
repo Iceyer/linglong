@@ -24,7 +24,7 @@ set(LL_BUILDER_SOURCES
     ../module/util/http/http_client.cpp
     ../module/util/http/http_client.h
     ../module/util/httpclient.cpp
-    ../module/util/json.h
+    ../module/util/serialize/serialize.h
     ../module/util/log_handler.cpp
     ../module/util/sysinfo.cpp
     ../module/util/uuid.cpp

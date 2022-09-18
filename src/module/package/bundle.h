@@ -8,8 +8,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef LINGLONG_BOX_SRC_MODULE_PACKAGE_BUNDLE_H_
-#define LINGLONG_BOX_SRC_MODULE_PACKAGE_BUNDLE_H_
+#ifndef LINGLONG_SRC_MODULE_PACKAGE_BUNDLE_H_
+#define LINGLONG_SRC_MODULE_PACKAGE_BUNDLE_H_
 
 #include <elf.h>
 #include <sys/stat.h>
@@ -33,27 +33,6 @@
 
 namespace linglong {
 namespace package {
-
-// __LITTLE_ENDIAN or __BIG_ENDIAN
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define ELFDATANATIVE ELFDATA2LSB
-#elif __BYTE_ORDER == __BIG_ENDIAN
-#define ELFDATANATIVE ELFDATA2MSB
-#else
-#error "Unknown machine endian"
-#endif
-
-// 16 bit system binary  swap
-#define bswap16(value) ((((value)&0xff) << 8) | ((value) >> 8))
-// 32 bit system binary  swap
-#define bswap32(value) \
-    (((uint32_t)bswap16((uint16_t)((value)&0xffff)) << 16) | (uint32_t)bswap16((uint16_t)((value) >> 16)))
-// 64 bit system binary  swap
-#define bswap64(value) \
-    (((uint64_t)bswap32((uint32_t)((value)&0xffffffff)) << 32) | (uint64_t)bswap32((uint32_t)((value) >> 32)))
-
-// FIXME: there is some problem that in module/util/runner.h, replace later
-linglong::util::Error runner(const QString &program, const QStringList &args, int timeout = -1);
 
 class BundlePrivate;
 
@@ -96,12 +75,13 @@ public:
 
     /**
      * push Bundle
-     * @param uabFilePath : uab file path
-     * @param repoUrl : remote repo url
-     * @param force :  force to push
+     * @param uabFilePath: uab file path
+     * @param repoUrl: remote repo url
+     * @param force:  force to push
      * @return Result
      */
-    linglong::util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel, bool force);
+    linglong::util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel,
+                               bool force);
 
 private:
     QScopedPointer<BundlePrivate> dd_ptr;
@@ -111,4 +91,4 @@ private:
 } // namespace package
 } // namespace linglong
 
-#endif /* LINGLONG_BOX_SRC_MODULE_PACKAGE_BUNDLE_H_ */
+#endif /* LINGLONG_SRC_MODULE_PACKAGE_BUNDLE_H_ */

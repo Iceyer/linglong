@@ -83,7 +83,7 @@ Reply AppManager::Start(const RunParamOption &paramOption)
         arch = linglong::util::hostArch();
     }
 
-    ParamStringMap paramMap;
+    QStringMap paramMap;
     // 获取版本信息
     QString version = "";
     if (!paramOption.version.isEmpty()) {

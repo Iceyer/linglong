@@ -10,41 +10,41 @@
 
 #pragma once
 
-#include "src/module/util/yaml.h"
+#include "module/util/serialize/yaml.h"
 #include "src/module/runtime/oci.h"
 
 namespace linglong {
 namespace test {
 
-class MountRule : public JsonSerialize
+class MountRule : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(MountRule)
-    Q_JSON_PROPERTY(QString, type);
-    Q_JSON_PROPERTY(QString, options);
-    Q_JSON_PROPERTY(QString, source);
-    Q_JSON_PROPERTY(QString, destination);
+    Q_SERIALIZE_CONSTRUCTOR(MountRule)
+    Q_SERIALIZE_PROPERTY(QString, type);
+    Q_SERIALIZE_PROPERTY(QString, options);
+    Q_SERIALIZE_PROPERTY(QString, source);
+    Q_SERIALIZE_PROPERTY(QString, destination);
 };
-D_SERIALIZE_DECLARE(MountRule)
+Q_SERIALIZE_DECLARE_TYPE(MountRule)
 
-class Permission : public JsonSerialize
+class Permission : public Serialize
 {
     Q_OBJECT
-    Q_JSON_CONSTRUCTOR(Permission)
+    Q_SERIALIZE_CONSTRUCTOR(Permission)
     // NOTE: custom class type must use with full namespace in qt type system
-    Q_JSON_PROPERTY(linglong::test::MountRuleList, mounts);
+    Q_SERIALIZE_PROPERTY(linglong::test::MountRuleList, mounts);
 };
-D_SERIALIZE_DECLARE(Permission)
+Q_SERIALIZE_DECLARE_TYPE(Permission)
 
-class App : public JsonSerialize
+class App : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(App)
-    Q_JSON_PROPERTY(QString, version);
+    Q_SERIALIZE_CONSTRUCTOR(App)
+    Q_SERIALIZE_PROPERTY(QString, version);
     // NOTE: custom class type must use with full namespace in qt type system
-    Q_JSON_PTR_PROPERTY(linglong::test::Permission, permissions);
+    Q_SERIALIZE_PTR_PROPERTY(linglong::test::Permission, permissions);
 };
-D_SERIALIZE_DECLARE(App)
+Q_SERIALIZE_DECLARE_TYPE(App)
 
 } // namespace test
 } // namespace linglong
@@ -53,31 +53,31 @@ Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::test, MountRule)
 Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::test, Permission)
 Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::test, App)
 
-class TestMount : public JsonSerialize
+class TestMount : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(TestMount)
-    Q_JSON_PROPERTY(QString, type);
-    Q_JSON_PROPERTY(QString, source);
+    Q_SERIALIZE_CONSTRUCTOR(TestMount)
+    Q_SERIALIZE_PROPERTY(QString, type);
+    Q_SERIALIZE_PROPERTY(QString, source);
 };
-Q_JSON_DECLARE_PTR_METATYPE(TestMount)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE(TestMount)
 
-class TestPermission : public JsonSerialize
+class TestPermission : public Serialize
 {
     Q_OBJECT
-    Q_JSON_CONSTRUCTOR(TestPermission)
-    Q_JSON_PROPERTY(TestMountList, mounts);
+    Q_SERIALIZE_CONSTRUCTOR(TestPermission)
+    Q_SERIALIZE_PROPERTY(TestMountList, mounts);
 };
-Q_JSON_DECLARE_PTR_METATYPE(TestPermission)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE(TestPermission)
 
-class TestApp : public JsonSerialize
+class TestApp : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(TestApp)
-    Q_JSON_PROPERTY(QString, version);
-    Q_JSON_PROPERTY(QStringList, mounts);
-    Q_JSON_PROPERTY(NamespaceList, namespaces);
-    Q_JSON_PTR_PROPERTY(Root, root);
-    Q_JSON_PTR_PROPERTY(TestPermission, permissions);
+    Q_SERIALIZE_CONSTRUCTOR(TestApp)
+    Q_SERIALIZE_PROPERTY(QString, version);
+    Q_SERIALIZE_PROPERTY(QStringList, mounts);
+    Q_SERIALIZE_PROPERTY(NamespaceList, namespaces);
+    Q_SERIALIZE_PTR_PROPERTY(Root, root);
+    Q_SERIALIZE_PTR_PROPERTY(TestPermission, permissions);
 };
-Q_JSON_DECLARE_PTR_METATYPE(TestApp)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE(TestApp)

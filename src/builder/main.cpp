@@ -24,10 +24,10 @@
 #include "module/runtime/oci.h"
 #include "module/repo/repo.h"
 #include "module/runtime/runtime.h"
-#include "module/util/yaml.h"
+#include "module/util/serialize/yaml.h"
 #include "module/util/log_handler.h"
 
-static void qJsonRegisterAll()
+static void qSerializeRegisterAll()
 {
     linglong::builder::registerAllMetaType();
     linglong::package::registerAllMetaType();
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     // 安装消息处理函数
     LOG_HANDLER->installMessageHandler();
 
-    qJsonRegisterAll();
+    qSerializeRegisterAll();
 
     linglong::builder::BuilderConfig::instance()->setProjectRoot(QDir::currentPath());
 
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
                                                   ? project->package->version.toStdString()
                                                   : parser.value(pkgVersion).toStdString();
 
-                 if (project->package->kind != linglong::builder::PackageKindRuntime) {
+                 if (project->package->kind != linglong::builder::kPackageKindRuntime) {
                      node["source"]["version"] = parser.value(srcVersion).isEmpty()
                                                      ? project->source->version.toStdString()
                                                      : parser.value(srcVersion).toStdString();

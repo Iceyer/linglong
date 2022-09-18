@@ -12,7 +12,7 @@
 #define LINGLONG_SRC_MODULE_UTIL_CONFIG_CONFIG_H_
 
 #include "module/util/serialize/serialize.h"
-#include "module/util/json.h"
+#include "module/util/serialize/json.h"
 #include "module/util/const.h"
 
 namespace linglong {
@@ -22,11 +22,11 @@ class Repo : public Serialize
 {
     Q_OBJECT;
     Q_SERIALIZE_CONSTRUCTOR(Repo)
-    Q_JSON_PROPERTY(QString, endpoint);
+    Q_SERIALIZE_PROPERTY(QString, endpoint);
 };
 Q_SERIALIZE_DECLARE_TYPE(Repo)
 
-class Config : public JsonSerialize
+class Config : public Serialize
 {
     Q_OBJECT;
     Q_SERIALIZE_PROPERTY(linglong::config::RepoStrMap, repos)

@@ -99,55 +99,55 @@ private:
 namespace linglong {
 namespace repo {
 
-class InfoResponse : public JsonSerialize
+class InfoResponse : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(InfoResponse)
+    Q_SERIALIZE_CONSTRUCTOR(InfoResponse)
 
-    Q_JSON_PROPERTY(ParamStringMap, revs);
+    Q_SERIALIZE_PROPERTY(QStringMap, revs);
 };
 
-class RevPair : public JsonSerialize
+class RevPair : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(RevPair)
+    Q_SERIALIZE_CONSTRUCTOR(RevPair)
 
-    Q_JSON_PROPERTY(QString, server);
-    Q_JSON_PROPERTY(QString, client);
+    Q_SERIALIZE_PROPERTY(QString, server);
+    Q_SERIALIZE_PROPERTY(QString, client);
 };
 
 } // namespace repo
 } // namespace linglong
 
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::repo, InfoResponse)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::repo, RevPair)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, InfoResponse)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, RevPair)
 
 namespace linglong {
 namespace repo {
 
-class UploadTaskRequest : public JsonSerialize
+class UploadTaskRequest : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(UploadTaskRequest)
+    Q_SERIALIZE_CONSTRUCTOR(UploadTaskRequest)
 
-    Q_JSON_PROPERTY(int, code);
-    Q_JSON_PROPERTY(QStringList, objects);
-    Q_JSON_PROPERTY(linglong::repo::RevPairStrMap, refs);
+    Q_SERIALIZE_PROPERTY(int, code);
+    Q_SERIALIZE_PROPERTY(QStringList, objects);
+    Q_SERIALIZE_PROPERTY(linglong::repo::RevPairStrMap, refs);
 };
 
-class UploadTaskResponse : public JsonSerialize
+class UploadTaskResponse : public Serialize
 {
     Q_OBJECT;
-    Q_JSON_CONSTRUCTOR(UploadTaskResponse)
+    Q_SERIALIZE_CONSTRUCTOR(UploadTaskResponse)
 
-    Q_JSON_PROPERTY(QString, id);
+    Q_SERIALIZE_PROPERTY(QString, id);
 };
 
 } // namespace repo
 } // namespace linglong
 
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::repo, UploadTaskRequest)
-Q_JSON_DECLARE_PTR_METATYPE_NM(linglong::repo, UploadTaskResponse)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, UploadTaskRequest)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, UploadTaskResponse)
 
 Q_DECLARE_LOGGING_CATEGORY(repoProgress)
 

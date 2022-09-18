@@ -10,14 +10,16 @@
 
 #include "bundle.h"
 #include "bundle_p.h"
-#include "module/util/config/config.h"
 
 #include <curl/curl.h>
+
+#include "module/util/config/config.h"
 
 namespace linglong {
 namespace package {
 
-linglong::util::Error runner(const QString &program, const QStringList &args, int timeout)
+// FIXME: there is some problem that in module/util/runner.h, replace later
+static linglong::util::Error runner(const QString &program, const QStringList &args, int timeout = -1)
 {
     QProcess process;
     process.setProgram(program);
