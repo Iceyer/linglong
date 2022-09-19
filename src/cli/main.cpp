@@ -507,22 +507,46 @@ int main(int argc, char **argv)
 
              qInfo().noquote() << "install" << argRef << ", please wait a few minutes...";
 
-             qDebug() << "install spec ref" << ref.toSpecString();
+             if (parser.isSet(optNoDbus)) {
+                 linglong::service::Reply reply;
+                 // appId format: org.deepin.calculator/1.2.6 in multi-version
+                 linglong::service::InstallParamOption installParamOption;
+                 installParamOption.repoPoint = repoType;
+                 // 增加 channel/module
+                 installParamOption.channel = parser.value(optChannel);
+                 installParamOption.appModule = parser.value(optModule);
+                 QStringList appInfoList = args.at(1).split("/");
+                 installParamOption.appId = appInfoList.at(0);
+                 installParamOption.arch = linglong::util::hostArch();
+                 if (appInfoList.size() == 2) {
+                     installParamOption.version = appInfoList.at(1);
+                 } else if (appInfoList.size() == 3) {
+                     installParamOption.version = appInfoList.at(1);
+                     installParamOption.arch = appInfoList.at(2);
+                 }
+                 SYSTEM_MANAGER_HELPER->setNoDBusMode(true);
+                 reply = SYSTEM_MANAGER_HELPER->InstallNoDbus(installParamOption);
+                 SYSTEM_MANAGER_HELPER->pool->waitForDone(-1);
+                 qInfo().noquote() << "install " << installParamOption.appId << " done";
+             } else {
+                 qDebug() << "install spec ref" << ref.toSpecString();
 
-             QDBusPendingReply<QString> dbusReply = packageManager.Install(ref.toSpecString(), {});
-             dbusReply.waitForFinished();
-             QString jobPath = dbusReply.value();
+                 QDBusPendingReply<QString> dbusReply = packageManager.Install(ref.toSpecString(), {});
+                 dbusReply.waitForFinished();
+                 QString jobPath = dbusReply.value();
 
-             QScopedPointer<linglong::cli::Cli> cli(new linglong::cli::Cli);
-             QScopedPointer<QDBusInterface> jobInterface(new QDBusInterface(DBusPackageManagerServiceName, jobPath,
-                                                                            DBusPackageManagerJobInterface,
-                                                                            QDBusConnection::systemBus(), nullptr));
-             QObject::connect(jobInterface.data(), SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)),
-                              cli.data(), SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
-             QObject::connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), cli.data(),
-                              SLOT(onFinish(quint32, QString)));
+                 QScopedPointer<linglong::cli::Cli> cli(new linglong::cli::Cli);
+                 QScopedPointer<QDBusInterface> jobInterface(new QDBusInterface(DBusPackageManagerServiceName, jobPath,
+                                                                                DBusPackageManagerJobInterface,
+                                                                                QDBusConnection::systemBus(), nullptr));
+                 QObject::connect(jobInterface.data(),
+                                  SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)), cli.data(),
+                                  SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
+                 QObject::connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), cli.data(),
+                                  SLOT(onFinish(quint32, QString)));
 
-             return app.exec();
+                 return app.exec();
+             }
          }},
         {"update", // 更新玲珑包
          [&](QCommandLineParser &parser) -> int {

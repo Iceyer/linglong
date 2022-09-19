@@ -80,6 +80,9 @@ public Q_SLOTS:
 
     QVariantMapList List(const QVariantMap &options);
 
+    // FIXME: just fix ci/cd build
+    Reply InstallNoDbus(const InstallParamOption &installParamOption);
+
     /**
      * @brief 卸载软件包
      *

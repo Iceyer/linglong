@@ -1650,5 +1650,24 @@ QVariantMapList PackageManager::List(const QVariantMap &options)
     return packages;
 }
 
+Reply PackageManager::InstallNoDbus(const InstallParamOption &installParamOption)
+{
+    Q_D(PackageManager);
+    Reply reply;
+    QString appId = installParamOption.appId.trimmed();
+    if (appId.isEmpty()) {
+        reply.message = "appId input err";
+        reply.code = STATUS_CODE(kUserInputParamErr);
+        return reply;
+    }
+    if ("flatpak" == installParamOption.repoPoint) {
+        return PACKAGEMANAGER_FLATPAK_IMPL->Install(installParamOption);
+    }
+    QFuture<void> future = QtConcurrent::run(pool.data(), [=]() { d->Install(installParamOption); });
+    reply.code = STATUS_CODE(kPkgInstalling);
+    reply.message = installParamOption.appId + " is installing";
+    return reply;
+}
+
 } // namespace package_manager
 } // namespace linglong
