@@ -78,6 +78,14 @@ PackageManagerPrivate::PackageManagerPrivate(PackageManager *parent)
     , kAppInstallPath(linglong::util::getLinglongRootPath() + "/layers/")
     , kLocalRepoPath(linglong::util::getLinglongRootPath())
     , kRemoteRepoName("repo")
+    , systemHelperInterface(linglong::SystemHelperDBusServiceName, linglong::SystemHelperDBusPath,
+                            []() -> QDBusConnection {
+                                auto address = QString(getenv("LINGLONG_SYSTEM_HELPER_ADDRESS"));
+                                if (address.length()) {
+                                    return QDBusConnection::connectToPeer(address, "ll-package-manager");
+                                }
+                                return QDBusConnection::systemBus();
+                            }())
     , ostreeRepo(kLocalRepoPath)
     , q_ptr(parent)
 {
@@ -748,9 +756,6 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     job->setProgress(95, 5, "export files...");
 
     // process install portal
-    OrgDeepinLinglongSystemHelperInterface systemHelperInterface(SystemHelperDBusServiceName, SystemHelperDBusPath,
-                                                                 QDBusConnection::systemBus());
-
     job->setProgress(98, 2, "process post install portal...");
     qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath << ref.toLocalFullRef();
     QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toString(), {});
@@ -936,8 +941,6 @@ Reply PackageManagerPrivate::Install(const InstallParamOption &installParamOptio
 
     // process portal after install
     {
-        OrgDeepinLinglongSystemHelperInterface systemHelperInterface(SystemHelperDBusServiceName, SystemHelperDBusPath,
-                                                                     QDBusConnection::systemBus());
         auto installPath = savePath;
         qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath, ref.toLocalFullRef();
         QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toString(), {});
@@ -1169,8 +1172,6 @@ Reply PackageManagerPrivate::Uninstall(const UninstallParamOption &paramOption)
                 }
             }
             auto packageRootPath = installPath + "/" + arch;
-            OrgDeepinLinglongSystemHelperInterface systemHelperInterface(
-                SystemHelperDBusServiceName, SystemHelperDBusPath, QDBusConnection::systemBus());
             qDebug() << "call systemHelperInterface.RuinInstallPortal" << packageRootPath << ref.toLocalFullRef()
                      << paramOption.delAppData;
             QDBusReply<void> reply =
@@ -1555,10 +1556,15 @@ QString PackageManager::Install(const QString &ref, const QVariantMap &options)
 {
     Q_D(PackageManager);
 
-    auto job = JobManager::instance()->createJob([=](Job *job) {
-        qDebug() << "install job start";
-        d->install(package::Ref(ref), job);
-    });
+    auto *conn = new QDBusConnection(connection());
+    qCritical() << "---" << conn->name();
+
+    auto job = JobManager::instance()->createJob(
+        [=](Job *job) {
+            qDebug() << "install job start";
+            d->install(package::Ref(ref), job);
+        },
+        conn);
 
     return job->path();
 }

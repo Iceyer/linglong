@@ -9,6 +9,8 @@
  */
 
 #include "job.h"
+#include "module/util/status_code.h"
+#include <qdebug.h>
 
 namespace linglong {
 namespace package_manager {
@@ -32,6 +34,7 @@ public:
     quint64 averageRate = 0;
     qint64 remaining = -1;
     QString message;
+    quint32 finishCode = quint32(linglong::util::StatusCode::kPkgUpdating);
 };
 
 Job::Job(const QString &id, const QString &path, std::function<void(Job *)> f, QObject *parent)
@@ -83,6 +86,8 @@ void Job::setProgress(quint32 progress, quint64 rate, quint64 averageRate, qint6
 void Job::setFinish(quint32 code, const QString &message)
 {
     Q_D(Job);
+    d->finishCode = code;
+    qDebug() << "------" << code;
     Q_EMIT d->worker->finish(code, message);
 }
 
@@ -132,6 +137,12 @@ QString Job::id() const
 {
     Q_D(const Job);
     return d->id;
+}
+
+quint32 Job::finishCode() const
+{
+    Q_D(const Job);
+    return d->finishCode;
 }
 
 Job::~Job() = default;

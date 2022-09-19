@@ -20,6 +20,27 @@
 
 using namespace linglong;
 
+bool registerServiceAndObject(QDBusConnection dbus, bool peerToPeer = false)
+{
+    if (!peerToPeer) {
+        if (!dbus.registerService(DBusPackageManagerServiceName)) {
+            qCritical() << "registerService failed" << dbus.lastError();
+            return false;
+        }
+    }
+
+    if (!dbus.registerObject(DBusPackageManagerPath, package_manager::PackageManager::instance())) {
+        qCritical() << "registerObject package manager failed" << dbus.lastError();
+        return false;
+    }
+
+    if (!dbus.registerObject(DBusPackageManagerJobManagerPath, package_manager::JobManager::instance())) {
+        qCritical() << "registerObject job manager failed" << dbus.lastError();
+        return false;
+    }
+    return true;
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
@@ -31,17 +52,35 @@ int main(int argc, char *argv[])
     linglong::service::registerAllMetaType();
     linglong::repo::registerAllMetaType();
 
-    QDBusConnection dbus = QDBusConnection::systemBus();
-    if (!dbus.registerService(DBusPackageManagerServiceName)) {
-        qCritical() << "service exist" << dbus.lastError();
-        return -1;
-    }
+    QCommandLineParser parser;
+    QCommandLineOption optBus("bus", "service bus address", "bus");
+    optBus.setFlags(QCommandLineOption::HiddenFromHelp);
+
+    parser.addOptions({optBus});
+    parser.parse(QCoreApplication::arguments());
 
     PackageManagerAdaptor packageManagerAdaptor(package_manager::PackageManager::instance());
     JobManagerAdaptor jma(package_manager::JobManager::instance());
 
-    dbus.registerObject(DBusPackageManagerPath, package_manager::PackageManager::instance());
-    dbus.registerObject(DBusPackageManagerJobManagerPath, package_manager::JobManager::instance());
-
+    QScopedPointer<QDBusServer> dbusServer;
+    if (parser.isSet(optBus)) {
+        auto busAddress = parser.value(optBus);
+        qDebug() << "bus address" << busAddress;
+        dbusServer.reset(new QDBusServer(busAddress));
+        if (!dbusServer->isConnected()) {
+            qCritical() << "dbusServer is not connected" << dbusServer->lastError();
+            return -1;
+        }
+        QObject::connect(dbusServer.data(), &QDBusServer::newConnection, [](const QDBusConnection &conn) {
+            // FIXME: work round to keep conn alive, but we finally need to free clientConn.
+            auto clientConn = new QDBusConnection(conn);
+            registerServiceAndObject(*clientConn, true);
+        });
+    } else {
+        QDBusConnection dbus = QDBusConnection::systemBus();
+        if (!registerServiceAndObject(dbus)) {
+            return -1;
+        }
+    }
     return QCoreApplication::exec();
 }

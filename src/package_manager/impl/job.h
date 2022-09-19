@@ -50,6 +50,7 @@ class Job
     Q_PROPERTY(quint64 AverageRate READ averageRate)
     Q_PROPERTY(qint64 Remaining READ remaining)
     Q_PROPERTY(QString Message READ message)
+    Q_PROPERTY(quint32 FinishCode READ finishCode)
 
     // DBus export contents
 Q_SIGNALS:
@@ -63,6 +64,7 @@ public:
     quint64 averageRate() const;
     qint64 remaining() const;
     QString message() const;
+    quint32 finishCode() const;
 
 public:
     Job(const QString &id, const QString &path, std::function<void(Job *)> f, QObject *parent);

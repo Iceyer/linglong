@@ -141,6 +141,16 @@ void printAppInfo(linglong::package::AppMetaInfoList appMetaInfoList)
     }
 }
 
+void startDaemon(QString program, QStringList args = {})
+{
+    QProcess process;
+    process.setProgram(program);
+    process.setStandardOutputFile("/dev/null");
+    process.setStandardErrorFile("/dev/null");
+    process.setArguments(args);
+    process.startDetached();
+}
+
 /**
  * @brief 检测 ll-service dbus 服务是否已经启动，未启动则启动
  *
@@ -153,12 +163,7 @@ void checkAndStartService(OrgDeepinLinglongAppManagerInterface &packageManager)
     QDBusReply<QString> status = packageManager.Status();
     // FIXME: should use more precision to check status
     if (kStatusActive != status.value()) {
-        QProcess process;
-        process.setProgram("ll-service");
-        process.setStandardOutputFile("/dev/null");
-        process.setStandardErrorFile("/dev/null");
-        process.setArguments({});
-        process.startDetached();
+        startDaemon("ll-service", {});
 
         for (int i = 0; i < 10; ++i) {
             status = packageManager.Status();
@@ -171,6 +176,7 @@ void checkAndStartService(OrgDeepinLinglongAppManagerInterface &packageManager)
         qCritical() << "start ll-service failed";
     }
 }
+
 void addRefArguments(QCommandLineParser &parser, QList<QCommandLineOption> opts)
 {
     parser.addPositionalArgument("ref",
@@ -188,6 +194,7 @@ only package id required，use this for short:
         parser.addOption(opt);
     }
 }
+
 using namespace linglong;
 
 int main(int argc, char **argv)
@@ -211,25 +218,75 @@ int main(int argc, char **argv)
     // TODO: change to no-dbus-daemon
     auto optNoDbus = QCommandLineOption("nodbus", "execute cmd directly, not via dbus(only for root user)", "");
     optNoDbus.setFlags(QCommandLineOption::HiddenFromHelp);
-    parser.addOption(optNoDbus);
 
     auto optRepoPoint = QCommandLineOption("repo-point", "app repo type to use", "repo-point", "");
     // TODO: may not support flatpak from cli, hidden it now.
     optRepoPoint.setFlags(QCommandLineOption::HiddenFromHelp);
-    parser.addOption(optRepoPoint);
+
+    parser.addOptions({optNoDbus, optRepoPoint});
 
     parser.parse(QCoreApplication::arguments());
 
     QStringList args = parser.positionalArguments();
     QString command = args.isEmpty() ? QString() : args.first();
 
+    auto appManagerDBusConnection = QDBusConnection::sessionBus();
+    auto packageManagerDBusConnection = QDBusConnection::systemBus();
+    auto systemHelperDBusConnection = QDBusConnection::systemBus();
+
+    auto systemHelperAddress = QString("unix:path=/run/linglong_system_helper_socket");
+    auto packageManagerAddress = QString("unix:path=/run/linglong_package_manager_socket");
+    auto appManagerAddress = QString("unix:path=/run/linglong_app_manager_socket");
+
+    if (parser.isSet(optNoDbus)) {
+        // NOTE: isConnected will NOT RETRY
+        // NOTE: name cannot be duplicate
+        systemHelperDBusConnection = QDBusConnection::connectToPeer(systemHelperAddress, "ll-system-helper-1");
+        if (!systemHelperDBusConnection.isConnected()) {
+            startDaemon("ll-system-helper", {"--bus=" + systemHelperAddress});
+            QThread::sleep(2);
+            systemHelperDBusConnection = QDBusConnection::connectToPeer(systemHelperAddress, "ll-system-helper");
+            if (!systemHelperDBusConnection.isConnected()) {
+                qCritical() << "failed to start ll-system-helper";
+                exit(-1);
+            }
+        }
+        setenv("LINGLONG_SYSTEM_HELPER_ADDRESS", systemHelperAddress.toStdString().c_str(), true);
+
+        packageManagerDBusConnection = QDBusConnection::connectToPeer(packageManagerAddress, "ll-package-manager-1");
+        if (!packageManagerDBusConnection.isConnected()) {
+            startDaemon("ll-package-manager", {"--bus=" + packageManagerAddress});
+            QThread::sleep(2);
+            packageManagerDBusConnection = QDBusConnection::connectToPeer(packageManagerAddress, "ll-package-manager");
+            if (!packageManagerDBusConnection.isConnected()) {
+                qCritical() << "failed to start ll-package-manager";
+                exit(-1);
+            }
+        }
+        setenv("LINGLONG_PACKAGE_MANAGER_ADDRESS", packageManagerAddress.toStdString().c_str(), true);
+
+        appManagerDBusConnection = QDBusConnection::connectToPeer(appManagerAddress, "ll-service-1");
+        if (!appManagerDBusConnection.isConnected()) {
+            startDaemon("ll-service", {"--bus=" + appManagerAddress});
+            QThread::sleep(2);
+            appManagerDBusConnection = QDBusConnection::connectToPeer(appManagerAddress, "ll-service");
+            if (!appManagerDBusConnection.isConnected()) {
+                qCritical() << "failed to start ll-service";
+                exit(-1);
+            }
+        }
+        setenv("LINGLONG_APP_MANAGER_ADDRESS", appManagerAddress.toStdString().c_str(), true);
+    }
+
     OrgDeepinLinglongAppManagerInterface appManager(AppManagerDBusServiceName, AppManagerDBusPath,
-                                                    QDBusConnection::sessionBus());
+                                                    appManagerDBusConnection);
 
     OrgDeepinLinglongPackageManagerInterface packageManager(DBusPackageManagerServiceName, DBusPackageManagerPath,
-                                                            QDBusConnection::systemBus());
-
-    checkAndStartService(appManager);
+                                                            packageManagerDBusConnection);
+    if (!parser.isSet(optNoDbus)) {
+        // NOTE: should be fine to call this using peer to peer dbus
+        checkAndStartService(appManager);
+    }
 
     // some common option
     auto optChannel = QCommandLineOption("channel", "The channel of package", kDefaultChannel, kDefaultChannel);
@@ -507,46 +564,56 @@ int main(int argc, char **argv)
 
              qInfo().noquote() << "install" << argRef << ", please wait a few minutes...";
 
-             if (parser.isSet(optNoDbus)) {
-                 linglong::service::Reply reply;
-                 // appId format: org.deepin.calculator/1.2.6 in multi-version
-                 linglong::service::InstallParamOption installParamOption;
-                 installParamOption.repoPoint = repoType;
-                 // 增加 channel/module
-                 installParamOption.channel = parser.value(optChannel);
-                 installParamOption.appModule = parser.value(optModule);
-                 QStringList appInfoList = args.at(1).split("/");
-                 installParamOption.appId = appInfoList.at(0);
-                 installParamOption.arch = linglong::util::hostArch();
-                 if (appInfoList.size() == 2) {
-                     installParamOption.version = appInfoList.at(1);
-                 } else if (appInfoList.size() == 3) {
-                     installParamOption.version = appInfoList.at(1);
-                     installParamOption.arch = appInfoList.at(2);
-                 }
-                 SYSTEM_MANAGER_HELPER->setNoDBusMode(true);
-                 reply = SYSTEM_MANAGER_HELPER->InstallNoDbus(installParamOption);
-                 SYSTEM_MANAGER_HELPER->pool->waitForDone(-1);
-                 qInfo().noquote() << "install " << installParamOption.appId << " done";
-             } else {
-                 qDebug() << "install spec ref" << ref.toSpecString();
+             // if (parser.isSet(optNoDbus)) {
+             // linglong::service::Reply reply;
+             // // appId format: org.deepin.calculator/1.2.6 in multi-version
+             // linglong::service::InstallParamOption installParamOption;
+             // installParamOption.repoPoint = repoType;
+             // // 增加 channel/module
+             // installParamOption.channel = parser.value(optChannel);
+             // installParamOption.appModule = parser.value(optModule);
+             // QStringList appInfoList = args.at(1).split("/");
+             // installParamOption.appId = appInfoList.at(0);
+             // installParamOption.arch = linglong::util::hostArch();
+             // if (appInfoList.size() == 2) {
+             // installParamOption.version = appInfoList.at(1);
+             // } else if (appInfoList.size() == 3) {
+             // installParamOption.version = appInfoList.at(1);
+             // installParamOption.arch = appInfoList.at(2);
+             // }
+             // SYSTEM_MANAGER_HELPER->setNoDBusMode(true);
+             // reply = SYSTEM_MANAGER_HELPER->InstallNoDbus(installParamOption);
+             // SYSTEM_MANAGER_HELPER->pool->waitForDone(-1);
+             // qInfo().noquote() << "install " << installParamOption.appId << " done";
+             // } else {
+             qDebug() << "install spec ref" << ref.toSpecString();
 
-                 QDBusPendingReply<QString> dbusReply = packageManager.Install(ref.toSpecString(), {});
-                 dbusReply.waitForFinished();
-                 QString jobPath = dbusReply.value();
+             QDBusPendingReply<QString> dbusReply = packageManager.Install(ref.toSpecString(), {});
+             dbusReply.waitForFinished();
+             QString jobPath = dbusReply.value();
 
-                 QScopedPointer<linglong::cli::Cli> cli(new linglong::cli::Cli);
-                 QScopedPointer<QDBusInterface> jobInterface(new QDBusInterface(DBusPackageManagerServiceName, jobPath,
-                                                                                DBusPackageManagerJobInterface,
-                                                                                QDBusConnection::systemBus(), nullptr));
-                 QObject::connect(jobInterface.data(),
-                                  SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)), cli.data(),
-                                  SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
+             QScopedPointer<linglong::cli::Cli> cli(new linglong::cli::Cli);
+             QScopedPointer<QDBusInterface> jobInterface(new QDBusInterface(DBusPackageManagerServiceName, jobPath,
+                                                                            DBusPackageManagerJobInterface,
+                                                                            packageManagerDBusConnection, nullptr));
+             QObject::connect(jobInterface.data(), SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)),
+                              cli.data(), SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
+             if (!parser.isSet(optNoDbus)) {
                  QObject::connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), cli.data(),
                                   SLOT(onFinish(quint32, QString)));
-
-                 return app.exec();
+             } else {
+                 while (jobInterface.data()->property("FinishCode").toUInt() == uint(util::StatusCode::kPkgUpdating)) {
+                     QThread::sleep(1);
+                 }
+                 if (jobInterface.data()->property("FinishCode").toUInt())
+                     exit(-1);
+                 else {
+                     return 0;
+                 }
              }
+
+             return app.exec();
+             // }
          }},
         {"update", // 更新玲珑包
          [&](QCommandLineParser &parser) -> int {
@@ -661,7 +728,6 @@ int main(int argc, char **argv)
              parser.addOption(optAllVer);
 
              auto optDelData = QCommandLineOption("delete-data", "delete app data", "");
-             optNoDbus.setFlags(QCommandLineOption::HiddenFromHelp);
              parser.addOption(optDelData);
 
              parser.process(app);
@@ -692,17 +758,6 @@ int main(int argc, char **argv)
              linglong::service::Reply reply;
              qInfo().noquote() << "uninstall" << appInfo << ", please wait a few minutes...";
              paramOption.delAllVersion = parser.isSet(optAllVer);
-             if (parser.isSet(optNoDbus)) {
-                 SYSTEM_MANAGER_HELPER->setNoDBusMode(true);
-                 reply = SYSTEM_MANAGER_HELPER->Uninstall(paramOption);
-                 if (reply.code != STATUS_CODE(kPkgUninstallSuccess)) {
-                     qInfo().noquote() << "message: " << reply.message << ", errcode:" << reply.code;
-                     return -1;
-                 } else {
-                     qInfo().noquote() << "uninstall " << appInfo << " success";
-                 }
-                 return 0;
-             }
              dbusReply = packageManager.Uninstall(paramOption);
              dbusReply.waitForFinished();
              reply = dbusReply.value();

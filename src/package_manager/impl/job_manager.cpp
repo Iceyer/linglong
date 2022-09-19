@@ -43,7 +43,7 @@ JobManager::JobManager()
 
 JobManager::~JobManager() = default;
 
-Job *JobManager::createJob(std::function<void(Job *)> f)
+Job *JobManager::createJob(std::function<void(Job *)> f, QDBusConnection *conn)
 {
     Q_D(JobManager);
     auto jobId = QUuid::createUuid().toString(QUuid::Id128);
@@ -56,13 +56,14 @@ Job *JobManager::createJob(std::function<void(Job *)> f)
         qDebug() << "unregisterObject" << job->id() << job;
         // delay unregister object path;
         QTimer::singleShot(5 * 1000, [=]() {
-            targetConnection().unregisterObject(job->path());
+            qDebug() << "conn name" << conn->name();
+            conn->unregisterObject(job->path());
             d->jobs.remove(jobId);
         });
     });
 
     qDebug() << "registerObject" << job->id() << job << QThread::currentThread();
-    targetConnection().registerObject(job->path(), job, QDBusConnection::ExportScriptableContents);
+    conn->registerObject(job->path(), job, QDBusConnection::ExportScriptableContents);
 
     QTimer::singleShot(50, [=]() {
         job->setProgress(0, "install job start");

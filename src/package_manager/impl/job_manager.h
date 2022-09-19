@@ -37,7 +37,7 @@ public Q_SLOTS:
     Q_SCRIPTABLE void Cancel(const QString &jobId);
 
 public:
-    Job *createJob(std::function<void(Job *)> f);
+    Job *createJob(std::function<void(Job *)> f, QDBusConnection *conn);
     Job *job(const QString &jobId);
 
 protected:

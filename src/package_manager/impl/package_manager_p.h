@@ -14,6 +14,7 @@
 #include "module/util/httpclient.h"
 #include "module/util/package_manager_param.h"
 #include "module/util/sysinfo.h"
+#include "dbus_gen_system_helper_interface.h"
 
 namespace linglong {
 namespace package_manager {
@@ -192,6 +193,7 @@ private:
 
     // 记录子线程安装及更新状态 供查询进度信息使用
     QMap<QString, Reply> appState;
+    OrgDeepinLinglongSystemHelperInterface systemHelperInterface;
 
     bool noDBusMode = false;
 
