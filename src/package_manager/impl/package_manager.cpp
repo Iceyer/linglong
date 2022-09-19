@@ -658,7 +658,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     if (!latestMetaInfo) {
         auto errorCode = STATUS_CODE(kPkgInstallFailed);
         auto errorMsg = QString("query package %1 failed").arg(ref.toSpecString());
-        job->setProgress(100, 0, "package has installed");
+        job->setProgress(100, 0, "package is already installed");
         job->setFinish(errorCode, errorMsg);
         return NewError(errorCode, errorMsg);
     }
@@ -708,7 +708,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
         ostreeRepo.checkout(targetRef, "", installPath);
     } else {
         qDebug() << "package" << targetRef.toString() << "installed";
-        job->setProgress(100, 0, "package has installed");
+        job->setProgress(100, 0, "package is already installed");
         job->setFinish(0, QString("install %1 success").arg(targetRef.toLocalFullRef()));
         return NoError();
     }

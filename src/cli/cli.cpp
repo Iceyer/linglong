@@ -57,6 +57,7 @@ void Cli::onFinish(quint32 , const QString &message)
     QString output = QString("%1").arg(message);
     std::cout << std::endl;
     std::cout << output.toStdString();
+    std::cout << std::endl;
     std::cout.flush();
     // FIXME: use signal to quit
     qApp->exit(0);

@@ -14,10 +14,12 @@
 namespace linglong {
 
 const auto kDefaultRepo = "linglong";
-const auto kDefaultChannel = "main";
+// fix to modify after linglong-server
+// const auto kDefaultChannel = "main";
+const auto kDefaultChannel = "linglong";
 const auto kDefaultVersion = "latest";
-const auto kDefaultModule = "binary";
-
+// const auto kDefaultModule = "binary";
+const auto kDefaultModule = "runtime";
 } // namespace linglong
 
 #endif // LINGLONG_SRC_MODULE_UTIL_CONST_H_

@@ -233,9 +233,7 @@ int main(int argc, char **argv)
 
     // some common option
     auto optChannel = QCommandLineOption("channel", "The channel of package", kDefaultChannel, kDefaultChannel);
-    parser.addOption(optChannel);
     auto optModule = QCommandLineOption("module", "The module of package", kDefaultModule, kDefaultModule);
-    parser.addOption(optModule);
 
     QMap<QString, std::function<int(QCommandLineParser & parser)>> subcommandMap = {
         {"run", // 启动玲珑应用
@@ -491,6 +489,7 @@ int main(int argc, char **argv)
              // 参数个数校验
              if (args.size() != 2 || (!repoType.isEmpty() && "flatpak" != repoType)) {
                  parser.showHelp(-1);
+                 return -1;
              }
 
              // 收到中断信号后恢复操作
