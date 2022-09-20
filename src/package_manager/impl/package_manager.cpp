@@ -29,7 +29,7 @@
 
 #include "app_status.h"
 #include "appinfo_cache.h"
-#include "job.h"
+#include "module/util/job/job.h"
 #include "job_manager.h"
 #include "service_dbus_common.h"
 
@@ -89,34 +89,6 @@ PackageManagerPrivate::PackageManagerPrivate(PackageManager *parent)
     , ostreeRepo(kLocalRepoPath)
     , q_ptr(parent)
 {
-    q_ptr->connect(&ostreeRepo, &repo::OSTreeRepo::pullProgressChanged, q_ptr, [=](const QVariantMap &extraData) {
-        auto jobId = extraData[KeyInstallJobId].toString();
-        auto ref = extraData[KeyInstallJobRef].toString();
-
-        auto stageProgressBegin = extraData[KeyInstallJobStageProgressBegin].toInt();
-        auto stageProgressEnd = extraData[KeyInstallJobStageProgressEnd].toInt();
-
-        auto bytesTransferred = extraData["bytesTransferred"].toULongLong();
-        auto fetched = extraData["fetched"].toUInt();
-        auto requested = extraData["requested"].toUInt();
-        //                       auto startTime = extraData["startTime"].toULongLong();
-        auto elapsedTime = extraData["elapsedTime"].toULongLong();
-        auto status = extraData["status"].toString();
-        elapsedTime += 1;
-
-        auto averageRate = (elapsedTime == 0) ? 0 : bytesTransferred / elapsedTime;
-        auto rate = averageRate;
-        auto remaining = (fetched == 0) ? 0 : requested * elapsedTime / fetched;
-
-        auto stageProgress = fetched * 100 / requested;
-        auto progress = stageProgressBegin + stageProgress * (stageProgressEnd - stageProgressBegin) / 100;
-        auto job = JobManager::instance()->job(jobId);
-        if (job) {
-            job->setProgress(progress, rate, averageRate, remaining, ref);
-        } else {
-            qWarning() << "can not find job" << job;
-        }
-    });
 }
 
 /*
@@ -652,7 +624,7 @@ void PackageManagerPrivate::delAppConfig(const QString &appId, const QString &ve
  * @param job
  * @return
  */
-util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
+util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *job)
 {
     QString userName = linglong::util::getUserName();
     if (noDBusMode) {
@@ -726,12 +698,43 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     extraData[KeyInstallJobId] = job->id();
     extraData[KeyInstallJobRef] = targetRef.toString();
 
+    auto jobController = job->controller();
+    job->connect(jobController, &util::JobController::progressChanged,
+                 [job, &extraData](const QVariantMap &progressData) {
+                     auto jobId = extraData[KeyInstallJobId].toString();
+                     auto ref = extraData[KeyInstallJobRef].toString();
+
+                     auto stageProgressBegin = extraData[KeyInstallJobStageProgressBegin].toInt();
+                     auto stageProgressEnd = extraData[KeyInstallJobStageProgressEnd].toInt();
+
+                     auto bytesTransferred = progressData["bytesTransferred"].toULongLong();
+                     auto fetched = progressData["fetched"].toUInt();
+                     auto requested = progressData["requested"].toUInt();
+                     //                       auto startTime = extraData["startTime"].toULongLong();
+                     auto elapsedTime = progressData["elapsedTime"].toULongLong();
+                     auto status = progressData["state"].toString();
+                     elapsedTime += 1;
+
+                     auto averageRate = (elapsedTime == 0) ? 0 : bytesTransferred / elapsedTime;
+                     auto rate = averageRate;
+                     auto remaining = (fetched == 0) ? 0 : requested * elapsedTime / fetched;
+
+                     auto stageProgress = fetched * 100 / requested;
+                     auto progress = stageProgressBegin + stageProgress * (stageProgressEnd - stageProgressBegin) / 100;
+
+                     if (job) {
+                         job->setProgress(progress, rate, averageRate, remaining, ref);
+                     } else {
+                         qWarning() << "can not find job" << job;
+                     }
+                 });
+
     auto installPath = ostreeRepo.rootOfLayer(targetRef);
     qDebug() << "check package" << targetRef.toString() << "is installed";
     if (!isUserAppInstalled(userName, targetRef)) {
         extraData[KeyInstallJobStageProgressBegin] = stagePackageProgressBegin;
         extraData[KeyInstallJobStageProgressEnd] = stagePackageProgressEnd;
-        ostreeRepo.pull(targetRef, extraData);
+        ostreeRepo.pull(targetRef, jobController);
         ostreeRepo.checkout(targetRef, "", installPath);
     } else {
         qDebug() << "package" << targetRef.toString() << "installed";
@@ -747,7 +750,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
         // install runtime
         extraData[KeyInstallJobStageProgressBegin] = stageRuntimeProgressBegin;
         extraData[KeyInstallJobStageProgressEnd] = stageRuntimeProgressEnd;
-        ostreeRepo.pull(runtimeRef, extraData);
+        ostreeRepo.pull(runtimeRef, jobController);
         ostreeRepo.checkout(runtimeRef, "", runtimeInstallPath);
         auto ret = linglong::util::insertAppRecord(installRuntimeInfo.get(), "user", userName);
         qDebug() << "insertAppRecord" << runtimeRef.toString() << ret;
@@ -762,7 +765,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
         // install base
         extraData[KeyInstallJobStageProgressBegin] = stageBaseProgressBegin;
         extraData[KeyInstallJobStageProgressEnd] = stageBaseProgressEnd;
-        ostreeRepo.pull(baseRef, extraData);
+        ostreeRepo.pull(baseRef, jobController);
         ostreeRepo.checkout(runtimeRef, "", baseInstallPath);
     } else {
         job->setProgress(stageBaseProgressEnd, "base ready");
@@ -1578,10 +1581,9 @@ QString PackageManager::Install(const QString &ref, const QVariantMap &options)
     Q_D(PackageManager);
 
     auto *conn = new QDBusConnection(connection());
-    qCritical() << "---" << conn->name();
 
     auto job = JobManager::instance()->createJob(
-        [=](Job *job) {
+        [=](util::Job *job) {
             qDebug() << "install job start";
             d->install(package::Ref(ref), job);
         },

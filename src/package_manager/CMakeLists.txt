@@ -30,6 +30,7 @@ set(LL_SYSTEM_SERVICE_SOURCES
     ../module/runtime/container.cpp
     ../module/runtime/container.cpp
     ../module/runtime/oci.h
+    ../module/util/config/config.cpp
     ../module/util/config/config.h
     ../module/util/connection.cpp
     ../module/util/desktop_entry.cpp
@@ -37,21 +38,23 @@ set(LL_SYSTEM_SERVICE_SOURCES
     ../module/util/http/http_client.cpp
     ../module/util/http/http_client.h
     ../module/util/httpclient.cpp
-    ../module/util/serialize/serialize.h
+    ../module/util/job/job.cpp
+    ../module/util/job/job.h
+    ../module/util/job/job_controller.cpp
+    ../module/util/job/job_controller.h
     ../module/util/log_handler.cpp
+    ../module/util/serialize/serialize.h
     ../module/util/sysinfo.cpp
     ../module/util/uuid.cpp
     ../module/util/xdg.cpp
     ../service/impl/param_option.h
     impl/app_status.cpp
     impl/appinfo_cache.cpp
-    impl/job.cpp
-    impl/job.h
     impl/job_manager.cpp
-    impl/package_manager_flatpak_impl.cpp
     impl/package_manager.cpp
+    impl/package_manager_flatpak_impl.cpp
     main.cpp
-    ../module/util/config/config.cpp)
+)
 
 qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES
@@ -72,8 +75,8 @@ qt5_add_dbus_adaptor(
 qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES
   ../module/dbus_ipc/org.deepin.linglong.Job.xml
-  impl/job.h
-  linglong::package_manager::Job
+  ../module/util/job/job.h
+  linglong::util::Job
   dbus_gen_job_adaptor
 )
 

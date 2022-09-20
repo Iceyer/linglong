@@ -9,16 +9,15 @@
  */
 
 #include "module/repo/ostree_repohelper.h"
+#include "job_manager.h"
 
 #include <QDBusConnection>
 #include <QTimer>
 #include <QUuid>
 
 #include "module/dbus_ipc/dbus_package_manager_common.h"
+#include "module/util/job/job.h"
 
-#include "job_manager.h"
-#include "job.h"
-#include "service_dbus_common.h"
 
 namespace linglong {
 namespace package_manager {
@@ -31,7 +30,7 @@ public:
     {
     }
 
-    QMap<QString, Job *> jobs;
+    QMap<QString, util::Job *> jobs;
 
     JobManager *q_ptr = nullptr;
 };
@@ -43,16 +42,16 @@ JobManager::JobManager()
 
 JobManager::~JobManager() = default;
 
-Job *JobManager::createJob(std::function<void(Job *)> f, QDBusConnection *conn)
+util::Job *JobManager::createJob(std::function<void(util::Job *)> f, QDBusConnection *conn)
 {
     Q_D(JobManager);
     auto jobId = QUuid::createUuid().toString(QUuid::Id128);
     auto jobPath = QLatin1String(linglong::DBusPackageManagerJobPath) + "/List/" + jobId;
-    auto job = new Job(jobId, jobPath, f, this);
+    auto job = new util::Job(jobId, jobPath, f, this);
 
     d->jobs[jobId] = job;
 
-    connect(job, &Job::Finish, this, [=]() {
+    connect(job, &util::Job::Finish, this, [=]() {
         qDebug() << "unregisterObject" << job->id() << job;
         // delay unregister object path;
         QTimer::singleShot(5 * 1000, [=]() {
@@ -184,7 +183,7 @@ QStringList JobManager::List()
     return OSTREE_REPO_HELPER->getOstreeJobList();
 }
 
-Job *JobManager::job(const QString &jobId)
+util::Job *JobManager::job(const QString &jobId)
 {
     Q_D(JobManager);
     return d->jobs[jobId];

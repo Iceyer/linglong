@@ -5,6 +5,7 @@ set(LL_SYSTEM_HELPER_SOURCES
     ../module/package/ref.cpp
     ../module/package/ref.h
     ../module/runtime/oci.h
+    ../module/util/config/config.cpp
     ../module/util/file.cpp
     ../module/util/file.h
     ../module/util/log_handler.cpp
@@ -15,7 +16,7 @@ set(LL_SYSTEM_HELPER_SOURCES
     privilege/privilege_install_portal.h
     system_helper.cpp
     system_helper.h
-    ../module/util/config/config.cpp)
+)
 
 qt5_add_dbus_adaptor(
   LL_SYSTEM_HELPER_SOURCES

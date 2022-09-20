@@ -54,6 +54,7 @@ set(LL_TEST_SOURCES
     ../src/module/repo/repo_client.h
     ../src/module/runtime/container.cpp
     ../src/module/runtime/oci.h
+    ../src/module/util/config/config.cpp
     ../src/module/util/config/config.h
     ../src/module/util/connection.cpp
     ../src/module/util/connection.cpp
@@ -64,6 +65,8 @@ set(LL_TEST_SOURCES
     ../src/module/util/http/http_client.cpp
     ../src/module/util/http/http_client.h
     ../src/module/util/httpclient.cpp
+    ../src/module/util/job/job_controller.cpp
+    ../src/module/util/job/job_controller.h
     ../src/module/util/serialize/serialize.h
     ../src/module/util/sysinfo.cpp
     ../src/module/util/uuid.cpp
@@ -72,12 +75,16 @@ set(LL_TEST_SOURCES
     ../src/package_manager/impl/appinfo_cache.cpp
     ../src/service/impl/param_option.h
     ../src/service/impl/reply.h
+    manager_test.cpp
+    module/config/config_test.cpp
     module/config/config_test.cpp
     module/package/package_info_test.cpp
     module/package/ref_test.cpp
     module/serialize/qt_json.cpp
     module/serialize/qt_yaml.cpp
     module/serialize/serialize_test.cpp
+    module/serialize/serialize_test.cpp
+    module/serialize/serialize_test.h
     module/serialize/serialize_test.h
     module/util/app_status_test.cpp
     module/util/fs_test.cpp
@@ -86,18 +93,12 @@ set(LL_TEST_SOURCES
     module/util/runner_test.cpp
     module/util/uuid_test.cpp
     module/util/xdg_test.cpp
-    module/serialize/serialize_test.h
-    module/serialize/serialize_test.cpp
-    manager_test.cpp
-    module/serialize/qt_json.cpp
-    module/serialize/qt_yaml.cpp
-    module/config/config_test.cpp
     repohelper_test.cpp
-    ../src/module/util/config/config.cpp)
+)
 
 # add qdbus call
 set_source_files_properties(
-    ../src/module/dbus_ipc/org.deepin.linglong.AppManager.xml
+  ../src/module/dbus_ipc/org.deepin.linglong.AppManager.xml
   PROPERTIES INCLUDE service/impl/register_meta_type.h
 )
 

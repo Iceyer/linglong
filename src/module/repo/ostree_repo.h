@@ -64,7 +64,7 @@ public:
 
     linglong::util::Error pull(const package::Ref &ref, bool force) override;
 
-    linglong::util::Error pull(const package::Ref &ref, const QVariantMap &extraData);
+    linglong::util::Error pull(const package::Ref &ref, QObject *controller = nullptr);
 
     linglong::util::Error pullAll(const package::Ref &ref, bool force);
 

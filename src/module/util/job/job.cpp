@@ -9,23 +9,28 @@
  */
 
 #include "job.h"
-#include "module/util/status_code.h"
-#include <qdebug.h>
+
+#include <QDebug>
 
 namespace linglong {
-namespace package_manager {
+namespace util {
 
 class JobPrivate
 {
 public:
     explicit JobPrivate(std::function<void(Job *)> f, Job *parent)
         : worker(new JobWorker(f, parent))
+        , controller(new util::JobController(parent))
         , q_ptr(parent)
     {
     }
 
     JobWorker *worker = nullptr;
+    util::JobController *controller = nullptr;
+    QMutex runningMutex;
+
     Job *q_ptr = nullptr;
+
     QString id;
     QString path;
 
@@ -34,7 +39,7 @@ public:
     quint64 averageRate = 0;
     qint64 remaining = -1;
     QString message;
-    quint32 finishCode = quint32(linglong::util::StatusCode::kPkgUpdating);
+    quint32 statusCode = 0;
 };
 
 Job::Job(const QString &id, const QString &path, std::function<void(Job *)> f, QObject *parent)
@@ -86,9 +91,11 @@ void Job::setProgress(quint32 progress, quint64 rate, quint64 averageRate, qint6
 void Job::setFinish(quint32 code, const QString &message)
 {
     Q_D(Job);
-    d->finishCode = code;
-    qDebug() << "------" << code;
-    Q_EMIT d->worker->finish(code, message);
+    d->statusCode = code;
+    d->message = message;
+    // todo: add a finish method to controller?
+    d->controller->cancel();
+    Q_EMIT d->worker->finish(d->statusCode, d->message);
 }
 
 void Job::startWorker()
@@ -139,10 +146,40 @@ QString Job::id() const
     return d->id;
 }
 
-quint32 Job::finishCode() const
+void Job::Pause()
+{
+    Q_D(Job);
+    d->controller->pause();
+}
+
+void Job::Resume()
+{
+    Q_D(Job);
+    d->controller->resume();
+}
+
+quint32 Job::statusCode() const
 {
     Q_D(const Job);
-    return d->finishCode;
+    return d->statusCode;
+}
+
+void Job::Cancel()
+{
+    Q_D(Job);
+    d->controller->cancel();
+}
+
+util::JobController *Job::controller()
+{
+    Q_D(Job);
+    return d->controller;
+}
+
+quint32 Job::state() const
+{
+    Q_D(const Job);
+    return static_cast<quint32>(d->controller->state());
 }
 
 Job::~Job() = default;
@@ -153,5 +190,5 @@ void JobWorker::run()
     func(job);
 }
 
-} // namespace package_manager
+} // namespace util
 } // namespace linglong

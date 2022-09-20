@@ -19,9 +19,13 @@
 #include "module/runtime/container.h"
 
 namespace linglong {
+
+namespace util {
+class Job;
+}
+
 namespace package_manager {
 
-class Job;
 class JobManagerPrivate;
 class JobManager
     : public QObject
@@ -37,8 +41,8 @@ public Q_SLOTS:
     Q_SCRIPTABLE void Cancel(const QString &jobId);
 
 public:
-    Job *createJob(std::function<void(Job *)> f, QDBusConnection *conn);
-    Job *job(const QString &jobId);
+    util::Job *createJob(std::function<void(util::Job *)> f, QDBusConnection *conn);
+    util::Job *job(const QString &jobId);
 
 protected:
     JobManager();

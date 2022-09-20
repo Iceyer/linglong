@@ -18,14 +18,17 @@ set(LL_BUILDER_SOURCES
     ../module/runtime/app.cpp
     ../module/runtime/container.cpp
     ../module/runtime/oci.h
+    ../module/util/config/config.cpp
     ../module/util/config/config.h
     ../module/util/desktop_entry.cpp
     ../module/util/file.cpp
     ../module/util/http/http_client.cpp
     ../module/util/http/http_client.h
     ../module/util/httpclient.cpp
-    ../module/util/serialize/serialize.h
+    ../module/util/job/job_controller.cpp
+    ../module/util/job/job_controller.h
     ../module/util/log_handler.cpp
+    ../module/util/serialize/serialize.h
     ../module/util/sysinfo.cpp
     ../module/util/uuid.cpp
     ../module/util/xdg.cpp
@@ -39,7 +42,7 @@ set(LL_BUILDER_SOURCES
     builder/source_fetcher.cpp
     builder/source_fetcher.h
     resource/resource.qrc
-    ../module/util/config/config.cpp)
+)
 
 set(RESOURCES
     # cmake-format: sortable

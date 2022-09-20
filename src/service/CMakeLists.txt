@@ -27,6 +27,7 @@ set(LL_SERVICE_SOURCES
     ../module/runtime/app.cpp
     ../module/runtime/container.cpp
     ../module/runtime/oci.h
+    ../module/util/config/config.cpp
     ../module/util/config/config.h
     ../module/util/connection.cpp
     ../module/util/desktop_entry.cpp
@@ -34,8 +35,10 @@ set(LL_SERVICE_SOURCES
     ../module/util/http/http_client.cpp
     ../module/util/http/http_client.h
     ../module/util/httpclient.cpp
-    ../module/util/serialize/serialize.h
+    ../module/util/job/job_controller.cpp
+    ../module/util/job/job_controller.h
     ../module/util/log_handler.cpp
+    ../module/util/serialize/serialize.h
     ../module/util/sysinfo.cpp
     ../module/util/uuid.cpp
     ../module/util/xdg.cpp
@@ -47,7 +50,7 @@ set(LL_SERVICE_SOURCES
     impl/reply.h
     main.cpp
     resource/resource.qrc
-    ../module/util/config/config.cpp)
+)
 
 qt5_add_dbus_adaptor(
   LL_SERVICE_SOURCES
@@ -72,15 +75,17 @@ target_link_libraries(ll-service PRIVATE ${LINK_LIBS})
 
 install(TARGETS ll-service RUNTIME DESTINATION bin)
 
-install(FILES misc/config.yaml DESTINATION ${CMAKE_INSTALL_PREFIX}/share/linglong/)
+install(FILES misc/config.yaml
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/share/linglong/
+)
 
 install(FILES misc/xdg/org.deepin.linglong.service.desktop
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/applications
-        )
+)
 
 install(FILES misc/xdg/org.deepin.linglong.service.desktop
         DESTINATION /etc/xdg/autostart
-        )
+)
 
 set(PERMISSION
     # cmake-format: sortable
@@ -98,18 +103,19 @@ install(FILES ${PERMISSION}
 
 install(FILES misc/xdg/linglong.xml
         DESTINATION ${CMAKE_INSTALL_PREFIX}/share/mime/packages
-        )
+)
 
 install(FILES ${CMAKE_SOURCE_DIR}/scripts/linglong.sh
         DESTINATION /etc/profile.d
-        )
-
-install(
-    FILES ${CMAKE_SOURCE_DIR}/scripts/linglong.sh
-    DESTINATION /etc/X11/Xsession.d/
-    RENAME 21linglong
 )
 
-install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/50-linglong
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user-environment-generators/
-        )
+install(
+  FILES ${CMAKE_SOURCE_DIR}/scripts/linglong.sh
+  DESTINATION /etc/X11/Xsession.d/
+  RENAME 21linglong
+)
+
+install(
+  PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/50-linglong
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/systemd/user-environment-generators/
+)

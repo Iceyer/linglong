@@ -7,7 +7,17 @@
         <property name="AverageRate" type="t" access="read"/>
         <property name="Remaining" type="x" access="read"/>
         <property name="Message" type="s" access="read"/>
-        <property name="IsFinish" type="b" access="read"/>
+        <!-- Status
+        JobStateRunning = 0x0001,
+        JobStatePause   = 0x0002,
+        JobStateFinish  = 0x0003,
+        -->
+        <property name="State" type="u" access="read"/>
+        <!-- Status
+        0: success,
+        Other: failed,
+        -->
+        <property name="StatusCode" type="u" access="read"/>
         <signal name="ProgressChanged">
             <arg name="Progress" type="u" direction="out"/>
             <arg name="Rate" type="t" direction="out"/>
@@ -16,7 +26,7 @@
             <arg name="Message" type="s" direction="out"/>
         </signal>
         <signal name="Finish">
-            <arg name="Code" type="u" direction="out"/>
+            <arg name="StatusCode" type="u" direction="out"/>
             <arg name="Message" type="s" direction="out"/>
         </signal>
     </interface>

@@ -11,6 +11,7 @@
 #include "app_status.h"
 #include "module/repo/ostree_repo.h"
 #include "module/repo/repo_client.h"
+#include "module/util/job/job_controller.h"
 #include "module/util/httpclient.h"
 #include "module/util/package_manager_param.h"
 #include "module/util/sysinfo.h"
@@ -19,7 +20,6 @@
 namespace linglong {
 namespace package_manager {
 
-class Job;
 class PackageManager;
 class PackageManagerPrivate : public QObject
 {
@@ -39,7 +39,7 @@ public:
     util::Error exportFiles(const package::Ref &ref);
 
 private:
-    util::Error install(const package::Ref &ref, Job *job);
+    util::Error install(const package::Ref &ref, util::Job *job);
 
     Reply Install(const InstallParamOption &installParamOption);
     Reply Uninstall(const UninstallParamOption &paramOption);

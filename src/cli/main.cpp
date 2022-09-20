@@ -17,6 +17,7 @@
 #include "dbus_gen_job_interface.h"
 #include "dbus_gen_package_manager_interface.h"
 #include "module/package/package.h"
+#include "module/util/job/job_controller.h"
 #include "module/util/package_manager_param.h"
 #include "module/dbus_ipc/dbus_app_manager_common.h"
 #include "module/dbus_ipc/dbus_package_manager_common.h"
@@ -614,24 +615,21 @@ int main(int argc, char **argv)
              QScopedPointer<QDBusInterface> jobInterface(new QDBusInterface(DBusPackageManagerServiceName, jobPath,
                                                                             DBusPackageManagerJobInterface,
                                                                             packageManagerDBusConnection, nullptr));
-             QObject::connect(jobInterface.data(), SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)),
-                              cli.data(), SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
              if (!parser.isSet(optNoDbus)) {
+                 QObject::connect(jobInterface.data(),
+                                  SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)), cli.data(),
+                                  SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
                  QObject::connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), cli.data(),
                                   SLOT(onFinish(quint32, QString)));
+                 return app.exec();
              } else {
-                 while (jobInterface.data()->property("FinishCode").toUInt() == uint(util::StatusCode::kPkgUpdating)) {
+                 while (jobInterface.data()->property("State").toUInt()
+                        == static_cast<quint32>(linglong::util::JobStateFinish)) {
                      QThread::sleep(1);
                  }
-                 if (jobInterface.data()->property("FinishCode").toUInt())
-                     exit(-1);
-                 else {
-                     return 0;
-                 }
+                 auto statusCode = jobInterface.data()->property("StatusCode").toUInt();
+                 return statusCode;
              }
-
-             return app.exec();
-             // }
          }},
         {"update", // 更新玲珑包
          [&](QCommandLineParser &parser) -> int {

@@ -29,6 +29,7 @@
 #include "module/util/config/config.h"
 #include "module/util/semver.h"
 #include "module/util/httpclient.h"
+#include "module/util/job/job_controller.h"
 
 Q_LOGGING_CATEGORY(repoProgress, "repo.progress", QtWarningMsg)
 
@@ -110,7 +111,6 @@ static void progressCallback(OstreeAsyncProgress *progress, gpointer /*user_data
 {
     gboolean scanning;
     g_autofree char *status = nullptr;
-    GVariant *extraDataGVariant = nullptr;
     guint fetched;
     guint fetchedDeltaParts;
     guint fetchedDeltaPartFallbacks;
@@ -135,20 +135,18 @@ static void progressCallback(OstreeAsyncProgress *progress, gpointer /*user_data
         return;
     }
 
-    auto ostreeRepo =
-        reinterpret_cast<linglong::repo::OSTreeRepo *>(g_object_get_data(G_OBJECT(progress), "parent-ptr"));
-    if (nullptr == ostreeRepo) {
-        qCWarning(repoProgress) << "no parent ptr, do not report" << ostreeRepo;
-        return;
-    }
-    extraDataGVariant = reinterpret_cast<GVariant *>(g_object_get_data(G_OBJECT(progress), "extra-data"));
-    if (nullptr == extraDataGVariant) {
-        qCWarning(repoProgress) << "no extra data, do not report" << extraDataGVariant;
-        return;
+    auto cancellable = reinterpret_cast<GCancellable *>(g_object_get_data(G_OBJECT(progress), "cancellable"));
+    if (nullptr == cancellable) {
+        qDebug() << "no cancellable, can not cancel task" << cancellable;
+        //        return;
     }
 
-    qCDebug(repoProgress) << "thread:" << QThread::currentThread() << "found extra data" << ostreeRepo
-                          << extraDataGVariant;
+    auto controller =
+        reinterpret_cast<linglong::util::JobController *>(g_object_get_data(G_OBJECT(progress), "controller"));
+    if (nullptr == controller) {
+        qWarning() << "no jobProgress found, do not report progress";
+        return;
+    }
 
     // clang-format off
     ostree_async_progress_get(
@@ -173,17 +171,23 @@ static void progressCallback(OstreeAsyncProgress *progress, gpointer /*user_data
         NULL);
     // clang-format on
 
-    if (extraDataGVariant) {
-        auto qVariantMap = gVariantToQVariant(extraDataGVariant).toMap();
+    if (controller) {
+        QVariantMap qVariantMap;
         auto elapsedTime = (g_get_monotonic_time() - startTime) / G_USEC_PER_SEC;
         qVariantMap["bytesTransferred"] = static_cast<qulonglong>(bytesTransferred);
         qVariantMap["fetched"] = fetched;
         qVariantMap["requested"] = requested;
         qVariantMap["startTime"] = static_cast<qulonglong>(startTime);
         qVariantMap["elapsedTime"] = static_cast<qulonglong>(elapsedTime);
-        qVariantMap["status"] = status;
-        qCDebug(repoProgress) << "send signal pullProgressChanged" << qVariantMap;
-        Q_EMIT ostreeRepo->pullProgressChanged(qVariantMap);
+        qVariantMap["state"] = status;
+
+        Q_EMIT controller->progressChanged(qVariantMap);
+
+        auto jobStatus = controller->waitForStatus();
+        if (jobStatus == linglong::util::JobStateFinish && cancellable) {
+            qCDebug(repoProgress) << "cancel task" << controller;
+            g_cancellable_cancel(cancellable);
+        }
     }
 
     // clang-format off
@@ -433,10 +437,12 @@ private:
     //! \param ref is an ostree ref without remote name, like: org.deepin.Runtime/1.1.1.3/x86_64
     //! \return
     // TODO: should support multi refs?
-    util::Error pull(const QString &ref, const QVariantMap &extraData)
+    util::Error pull(const QString &ref, QObject *controller = nullptr)
     {
         util::Error error;
         GError *gErr = nullptr;
+
+        GCancellable *cancellable = g_cancellable_new();
         GMainContext *main_context = g_main_context_new();
         g_main_context_push_thread_default(main_context);
 
@@ -477,24 +483,26 @@ private:
         // !!! only gpointer can pass to ostree_async_progress_new_and_connect second args, otherwise it will crash.
         OstreeAsyncProgress *progress = ostree_async_progress_new_and_connect(progressCallback, nullptr);
 
-        GVariantBuilder extraDataBuilder;
-        g_variant_builder_init(&extraDataBuilder, G_VARIANT_TYPE("a{sv}"));
-        for (auto const &key : extraData.keys()) {
-            auto data = extraData[key].toString().toStdString();
-            g_variant_builder_add(&extraDataBuilder, "{s@v}", key.toStdString().c_str(),
-                                  g_variant_new_variant(g_variant_new_string(data.c_str())));
-        }
+        //        GVariantBuilder extraDataBuilder;
+        //        g_variant_builder_init(&extraDataBuilder, G_VARIANT_TYPE("a{sv}"));
+        //        for (auto const &key : extraData.keys()) {
+        //            auto data = extraData[key].toString().toStdString();
+        //            g_variant_builder_add(&extraDataBuilder, "{s@v}", key.toStdString().c_str(),
+        //                                  g_variant_new_variant(g_variant_new_string(data.c_str())));
+        //        }
+        //
+        //        auto extraDataGVariant = g_variant_ref_sink(g_variant_builder_end(&extraDataBuilder));
+        //        qDebug() << "set extra-data" << extraDataGVariant << gVariantToQVariant(extraDataGVariant);
+        //        g_object_set_data(G_OBJECT(progress), "extra-data", extraDataGVariant);
 
-        auto extraDataGVariant = g_variant_ref_sink(g_variant_builder_end(&extraDataBuilder));
-        qDebug() << "set extra-data" << extraDataGVariant << gVariantToQVariant(extraDataGVariant);
-        g_object_set_data(G_OBJECT(progress), "extra-data", extraDataGVariant);
-        g_object_set_data(G_OBJECT(progress), "parent-ptr", reinterpret_cast<gpointer>(q_ptr));
+        g_object_set_data(G_OBJECT(progress), "cancellable", reinterpret_cast<gpointer>(cancellable));
+        g_object_set_data(G_OBJECT(progress), "controller", reinterpret_cast<gpointer>(controller));
 
         qDebug() << "pull from" << repoNameStr.c_str() << refs[0];
         // repo name must not be empty
         Q_ASSERT(!repoNameStr.empty());
         auto ostreeRepoPtr = openRepo(ostreePath);
-        if (!ostree_repo_pull_with_options(ostreeRepoPtr, repoNameStr.c_str(), options, progress, nullptr, &gErr)) {
+        if (!ostree_repo_pull_with_options(ostreeRepoPtr, repoNameStr.c_str(), options, progress, cancellable, &gErr)) {
             QString errMsg = gErr ? QString(gErr->message) : "unknown error";
             qCritical() << "ostree_repo_pull_with_options" << remoteRepoName << ref << " failed" << errMsg;
             error = NewError(-1, errMsg);
@@ -708,11 +716,11 @@ linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
  * @param extraData: send back extraData with signal pullProgressChanged
  * @return
  */
-linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, const QVariantMap &extraData)
+linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, QObject *controller)
 {
     Q_D(OSTreeRepo);
     auto refStr = ref.toOSTreeRefString();
-    return WrapError(d->pull(refStr, extraData));
+    return WrapError(d->pull(refStr, controller));
 }
 
 linglong::util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
