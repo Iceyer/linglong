@@ -141,14 +141,14 @@ void printAppInfo(linglong::package::AppMetaInfoList appMetaInfoList)
     }
 }
 
-void startDaemon(QString program, QStringList args = {})
+void startDaemon(QString program, QStringList args = {}, qint64 *pid = nullptr)
 {
     QProcess process;
     process.setProgram(program);
     process.setStandardOutputFile("/dev/null");
     process.setStandardErrorFile("/dev/null");
     process.setArguments(args);
-    process.startDetached();
+    process.startDetached(pid);
 }
 
 /**
@@ -192,6 +192,23 @@ only package id required，use this for short:
 
     for (auto opt : opts) {
         parser.addOption(opt);
+    }
+}
+
+static qint64 appManagerPID = -1;
+static qint64 systemHelperPID = -1;
+static qint64 packageManagerPID = -1;
+
+void handleOnExit(int, void *)
+{
+    if (appManagerPID != -1) {
+        kill(appManagerPID, SIGTERM);
+    }
+    if (systemHelperPID != -1) {
+        kill(systemHelperPID, SIGTERM);
+    }
+    if (packageManagerPID != -1) {
+        kill(packageManagerPID, SIGTERM);
     }
 }
 
@@ -239,12 +256,13 @@ int main(int argc, char **argv)
     auto appManagerAddress = QString("unix:path=/run/linglong_app_manager_socket");
 
     if (parser.isSet(optNoDbus)) {
+        on_exit(handleOnExit, nullptr);
         // NOTE: isConnected will NOT RETRY
         // NOTE: name cannot be duplicate
         systemHelperDBusConnection = QDBusConnection::connectToPeer(systemHelperAddress, "ll-system-helper-1");
         if (!systemHelperDBusConnection.isConnected()) {
-            startDaemon("ll-system-helper", {"--bus=" + systemHelperAddress});
-            QThread::sleep(2);
+            startDaemon("ll-system-helper", {"--bus=" + systemHelperAddress}, &systemHelperPID);
+            QThread::sleep(1);
             systemHelperDBusConnection = QDBusConnection::connectToPeer(systemHelperAddress, "ll-system-helper");
             if (!systemHelperDBusConnection.isConnected()) {
                 qCritical() << "failed to start ll-system-helper";
@@ -255,8 +273,8 @@ int main(int argc, char **argv)
 
         packageManagerDBusConnection = QDBusConnection::connectToPeer(packageManagerAddress, "ll-package-manager-1");
         if (!packageManagerDBusConnection.isConnected()) {
-            startDaemon("ll-package-manager", {"--bus=" + packageManagerAddress});
-            QThread::sleep(2);
+            startDaemon("ll-package-manager", {"--bus=" + packageManagerAddress}, &packageManagerPID);
+            QThread::sleep(1);
             packageManagerDBusConnection = QDBusConnection::connectToPeer(packageManagerAddress, "ll-package-manager");
             if (!packageManagerDBusConnection.isConnected()) {
                 qCritical() << "failed to start ll-package-manager";
@@ -267,8 +285,8 @@ int main(int argc, char **argv)
 
         appManagerDBusConnection = QDBusConnection::connectToPeer(appManagerAddress, "ll-service-1");
         if (!appManagerDBusConnection.isConnected()) {
-            startDaemon("ll-service", {"--bus=" + appManagerAddress});
-            QThread::sleep(2);
+            startDaemon("ll-service", {"--bus=" + appManagerAddress}, &appManagerPID);
+            QThread::sleep(1);
             appManagerDBusConnection = QDBusConnection::connectToPeer(appManagerAddress, "ll-service");
             if (!appManagerDBusConnection.isConnected()) {
                 qCritical() << "failed to start ll-service";
