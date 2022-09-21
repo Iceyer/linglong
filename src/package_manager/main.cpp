@@ -20,27 +20,6 @@
 
 using namespace linglong;
 
-bool registerServiceAndObject(QDBusConnection dbus, bool peerToPeer = false)
-{
-    if (!peerToPeer) {
-        if (!dbus.registerService(DBusPackageManagerServiceName)) {
-            qCritical() << "registerService failed" << dbus.lastError();
-            return false;
-        }
-    }
-
-    if (!dbus.registerObject(DBusPackageManagerPath, package_manager::PackageManager::instance())) {
-        qCritical() << "registerObject package manager failed" << dbus.lastError();
-        return false;
-    }
-
-    if (!dbus.registerObject(DBusPackageManagerJobManagerPath, package_manager::JobManager::instance())) {
-        qCritical() << "registerObject job manager failed" << dbus.lastError();
-        return false;
-    }
-    return true;
-}
-
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
@@ -74,11 +53,15 @@ int main(int argc, char *argv[])
         QObject::connect(dbusServer.data(), &QDBusServer::newConnection, [](const QDBusConnection &conn) {
             // FIXME: work round to keep conn alive, but we finally need to free clientConn.
             auto clientConn = new QDBusConnection(conn);
-            registerServiceAndObject(*clientConn, true);
+            registerServiceAndObject(clientConn, "",
+                                     {{DBusPackageManagerPath, package_manager::PackageManager::instance()},
+                                      {DBusPackageManagerJobManagerPath, package_manager::JobManager::instance()}});
         });
     } else {
-        QDBusConnection dbus = QDBusConnection::systemBus();
-        if (!registerServiceAndObject(dbus)) {
+        QDBusConnection bus = QDBusConnection::systemBus();
+        if (!registerServiceAndObject(&bus, DBusPackageManagerServiceName,
+                                      {{DBusPackageManagerPath, package_manager::PackageManager::instance()},
+                                       {DBusPackageManagerJobManagerPath, package_manager::JobManager::instance()}})) {
             return -1;
         }
     }

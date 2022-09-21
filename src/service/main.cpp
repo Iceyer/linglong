@@ -19,26 +19,10 @@
 
 #include "impl/register_meta_type.h"
 
-using namespace linglong;
-
-bool registerServiceAndOjbect(QDBusConnection conn, bool peerToPeer = false)
-{
-    if (!peerToPeer) {
-        if (!conn.registerService(AppManagerDBusServiceName)) {
-            qCritical() << "registerService failed" << conn.lastError();
-            return false;
-        }
-    }
-    if (!conn.registerObject(AppManagerDBusPath, service::AppManager::instance())) {
-        qCritical() << "registerObject failed" << AppManagerDBusPath << conn.lastError();
-        return false;
-    }
-
-    return true;
-}
-
 int main(int argc, char *argv[])
 {
+    using namespace linglong;
+
     QCoreApplication app(argc, argv);
     QCoreApplication::setOrganizationName("deepin");
 
@@ -71,11 +55,12 @@ int main(int argc, char *argv[])
         QObject::connect(dbusServer.data(), &QDBusServer::newConnection, [](const QDBusConnection &conn) {
             // FIXME: work round to keep conn alive, but we finally need to free clientConn.
             auto clientConn = new QDBusConnection(conn);
-            registerServiceAndOjbect(*clientConn, true);
+            registerServiceAndObject(clientConn, "", {{AppManagerDBusPath, service::AppManager::instance()}});
         });
     } else {
         auto bus = QDBusConnection::sessionBus();
-        if (!registerServiceAndOjbect(bus)) {
+        if (!registerServiceAndObject(&bus, AppManagerDBusServiceName,
+                                      {{AppManagerDBusPath, service::AppManager::instance()}})) {
             return -1;
         }
         app.connect(&app, &QCoreApplication::aboutToQuit, &app, [&] {

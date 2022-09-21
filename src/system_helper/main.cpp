@@ -19,30 +19,11 @@
 #include "system_helper.h"
 #include "privilege/privilege_install_portal.h"
 
-bool registerServiceAndOjbect(QDBusConnection conn, linglong::system::helper::SystemHelper &systemHelper,
-                              bool peerToPeer = false)
-{
-    if (!conn.isConnected()) {
-        qCritical() << "bad connection" << conn.lastError();
-        return false;
-    }
-    if (!peerToPeer) {
-        if (!conn.registerService(linglong::SystemHelperDBusServiceName)) {
-            qCritical() << "registerService failed" << conn.lastError();
-            return false;
-        }
-    }
-
-    if (!conn.registerObject(linglong::SystemHelperDBusPath, &systemHelper)) {
-        qCritical() << "registerObject failed" << conn.lastError();
-        return false;
-    }
-    return true;
-}
-
 int main(int argc, char *argv[])
 {
+    using namespace linglong;
     using namespace linglong::system::helper;
+
     QCoreApplication app(argc, argv);
 
     LOG_HANDLER->installMessageHandler();
@@ -71,11 +52,17 @@ int main(int argc, char *argv[])
         QObject::connect(dbusServer.data(), &QDBusServer::newConnection, [&systemHelper](const QDBusConnection &conn) {
             // FIXME: work round to keep conn alive, but we finally need to free clientConn.
             auto clientConn = new QDBusConnection(conn);
-            registerServiceAndOjbect(*clientConn, systemHelper, true);
+            registerServiceAndObject(clientConn, "",
+                                     {
+                                         {linglong::SystemHelperDBusPath, &systemHelper},
+                                     });
         });
     } else {
-        QDBusConnection dbus = QDBusConnection::systemBus();
-        if (!registerServiceAndOjbect(dbus, systemHelper)) {
+        QDBusConnection bus = QDBusConnection::systemBus();
+        if (!registerServiceAndObject(&bus, linglong::SystemHelperDBusServiceName,
+                                      {
+                                          {linglong::SystemHelperDBusPath, &systemHelper},
+                                      })) {
             return -1;
         }
     }
