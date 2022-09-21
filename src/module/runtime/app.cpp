@@ -934,6 +934,12 @@ public:
         QString appRefStr = latestAppRef.toSpecString();
 
         package::Ref runtimeRef(info->runtime);
+        // 获取最新版本runtime
+        if (runtimeRef.version.split(".").size() != 4) {
+           auto latestRuntimeRef = repo->latestOfRef(runtimeRef.appId, "");
+           runtimeRef.version = latestRuntimeRef.version;
+        }
+
         runtimeRef.channel = channel;
         runtimeRef.module = module;
         QString runtimeFullRefStr = runtimeRef.toSpecString();

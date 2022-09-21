@@ -673,6 +673,25 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
 
     package::Ref targetRef = latestMetaInfo->ref();
     package::Ref runtimeRef(latestMetaInfo->runtime);
+    // runtime 未锁版本号时获取最新版本runtime
+    qDebug() << "install package runtimeinfo:" << latestMetaInfo->runtime
+             << ", package runtime version:" << runtimeRef.version;
+    QStringList runtimeVersion = runtimeRef.version.split(".");
+    std::unique_ptr<package::AppMetaInfo> installRuntimeInfo = nullptr;
+    if (runtimeVersion.size() != 4) {
+        runtimeRef.version = "";
+    }
+    std::tie(result, installRuntimeInfo) = getLatestPackageMetaInfo(runtimeRef);
+    if (!installRuntimeInfo) {
+        auto errorCode = STATUS_CODE(kPkgInstallFailed);
+        auto errorMsg = QString("query package %1 failed").arg(runtimeRef.toSpecString());
+        job->setProgress(100, 0, "query need install runtime info failed");
+        job->setFinish(errorCode, errorMsg);
+        return NewError(errorCode, errorMsg);
+    }
+    runtimeRef.version = installRuntimeInfo->version;
+    qDebug() << "install package need install runtime version:" << installRuntimeInfo->version;
+
     package::Ref baseRef = getRuntimeBaseRef(runtimeRef);
 
     // FIXME: how to select channel
@@ -722,7 +741,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     }
 
     auto runtimeInstallPath = ostreeRepo.rootOfLayer(runtimeRef);
-    qDebug() << "check runtime" << runtimeRef.toString() << "is installed";
+    qDebug() << "check runtime" << runtimeRef.toString() << "is needInstallRuntime" << needInstallRuntime;
     if (needInstallRuntime) {
         // FIXME: update database
         // install runtime
@@ -730,6 +749,8 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
         extraData[KeyInstallJobStageProgressEnd] = stageRuntimeProgressEnd;
         ostreeRepo.pull(runtimeRef, extraData);
         ostreeRepo.checkout(runtimeRef, "", runtimeInstallPath);
+        auto ret = linglong::util::insertAppRecord(installRuntimeInfo.get(), "user", userName);
+        qDebug() << "insertAppRecord" << runtimeRef.toString() << ret;
     } else {
         job->setProgress(stageRuntimeProgressEnd, "runtime " + runtimeRef.toString() + " installed");
     }
@@ -1373,6 +1394,7 @@ Reply PackageManagerPrivate::Update(const ParamOption &paramOption)
 
 package::Ref PackageManagerPrivate::getRuntimeBaseRef(const package::Ref &ref)
 {
+    // fix to do dealwith baseRef
     return package::Ref(QString());
 }
 
@@ -1387,10 +1409,9 @@ PackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref)
     // 安装不查缓存
     auto ret = getAppInfofromServer(ref.appId, ref.version, ref.arch, appData, reply.message);
     if (!ret) {
+        qDebug() << "appData from server" << appData;
         return {NewError(STATUS_CODE(kPkgInstallFailed), ""), std::move(latestMetaInfo)};
     }
-
-    qDebug() << "appData from server" << appData;
 
     linglong::package::AppMetaInfoList appList;
     ret = loadAppInfo(appData, appList, reply.message);
