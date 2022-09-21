@@ -661,11 +661,12 @@ bool OstreeRepoHelper::repoDeleteDatabyRef(const QString &repoPath, const QStrin
         return false;
     }
 
+    const std::string repoTmp = remoteName.toStdString();
     const std::string refTmp = ref.toStdString();
     GCancellable *cancellable = NULL;
     GError *error = NULL;
 
-    if (!ostree_repo_set_ref_immediate(pLingLongDir->repo, NULL, refTmp.c_str(), NULL, cancellable, &error)) {
+    if (!ostree_repo_set_ref_immediate(pLingLongDir->repo, repoTmp.c_str(), refTmp.c_str(), NULL, cancellable, &error)) {
         qCritical() << "repoDeleteDatabyRef error:" << error->message;
         err = "repoDeleteDatabyRef error:" + QString(QLatin1String(error->message));
         return false;
