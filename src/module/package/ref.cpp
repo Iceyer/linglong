@@ -106,10 +106,16 @@ QString Ref::toOSTreeRefString() const
     auto fixModule = module;
     fixModule = "runtime";
 
+    if (repo.isEmpty() && channel.isEmpty()) {
+        // {id}/{version}/{arch}/{module}
+        return QString("%1/%2/%3/%4").arg(appId, version, arch, fixModule);
+    }
+
     if (repo.isEmpty()) {
         // {channel}/{id}/{version}/{arch}/{module}
         return QString("%1/%2/%3/%4/%5").arg(channel, appId, version, arch, fixModule);
     }
+
     // {repo}:/{channel}/{id}/{version}/{arch}/{module}
     return QString("%1:%2/%3/%4/%5/%6").arg(repo, channel, appId, version, arch, fixModule);
 }

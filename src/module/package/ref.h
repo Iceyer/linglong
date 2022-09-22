@@ -29,8 +29,6 @@ public:
         , version(version)
         , arch(arch)
     {
-        channel = "";
-        module = "";
     }
 
     Ref(const QString &remote, const QString &appId, const QString &version, const QString &arch, const QString &module)
@@ -87,6 +85,11 @@ public:
     Q_DECL_DEPRECATED QString toLocalFullRef() const
     {
         return QString("%1/%2/%3/%4").arg(appId, version, arch, module);
+    }
+
+    void setModule(const QString &md)
+    {
+        module = md;
     }
 
     QString repo;

@@ -719,12 +719,14 @@ linglong::util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
 {
     Q_D(OSTreeRepo);
     // Fixme: remote name maybe not repo and there should support multiple remote
-    auto ret = d->ostreeRun({"pull", "repo", "--mirror", QStringList {ref.toString(), "runtime"}.join("/")});
+    auto tmpRef = ref;
+    auto ret = d->ostreeRun({"pull", "repo", "--mirror", tmpRef.toString()});
     if (!ret.success()) {
         return NewError(ret);
     }
 
-    ret = d->ostreeRun({"pull", "repo", "--mirror", QStringList {ref.toString(), "devel"}.join("/")});
+    tmpRef.setModule("devel");
+    ret = d->ostreeRun({"pull", "repo", "--mirror", tmpRef.toString()});
 
     return WrapError(ret);
 }
@@ -772,8 +774,11 @@ linglong::util::Error OSTreeRepo::checkoutAll(const package::Ref &ref, const QSt
 {
     Q_D(OSTreeRepo);
 
-    QStringList runtimeArgs = {"checkout", "--union", QStringList {ref.toString(), "runtime"}.join("/"), target};
-    QStringList develArgs = {"checkout", "--union", QStringList {ref.toString(), "devel"}.join("/"), target};
+    auto tmpRef = ref;
+    QStringList runtimeArgs = {"checkout", "--union", tmpRef.toString(), target};
+    
+    tmpRef.setModule("devel");
+    QStringList develArgs = {"checkout", "--union", tmpRef.toString(), target};
 
     if (!subPath.isEmpty()) {
         runtimeArgs.push_back("--subpath=" + subPath);
