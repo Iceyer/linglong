@@ -779,7 +779,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, Job *job)
     // process install portal
     job->setProgress(98, 2, "process post install portal...");
     qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath << ref.toLocalFullRef();
-    QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toString(), {});
+    QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toSpecString(), {});
     if (!reply.isValid()) {
         qCritical() << "process post install portal failed:" << reply.error();
     }
