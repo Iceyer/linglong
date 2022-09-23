@@ -180,8 +180,9 @@ int deleteAppRecord(const QString &appId, const QString &appVer, const QString &
     if (!userName.isEmpty()) {
         condition.append(QString(" AND user = '%1'").arg(userName));
     }
-    qDebug() << "sql condition:" << condition;
     deleteSql.append(condition);
+
+    qDebug().noquote() << "sql:" << deleteSql;
 
     Connection connection;
     QSqlQuery sqlQuery = connection.execute(deleteSql);
@@ -247,13 +248,13 @@ bool getAppInstalledStatus(const QString &appId, const QString &appVer, const QS
     if (!module.isEmpty()) {
         condition.append(QString(" AND module = '%1'").arg(module));
     }
-    qDebug() << "sql condition:" << condition;
     selectSql.append(condition);
 
+    qDebug().noquote() << "sql:" << selectSql;
     Connection connection;
     QSqlQuery sqlQuery = connection.execute(selectSql);
     if (QSqlError::NoError != sqlQuery.lastError().type()) {
-        qCritical() << "execute deleteSql error:" << sqlQuery.lastError().text();
+        qCritical() << "execute sql error:" << sqlQuery.lastError().text();
         return false;
     }
     // 指定用户和版本找不到

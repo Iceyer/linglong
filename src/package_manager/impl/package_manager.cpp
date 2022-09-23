@@ -21,11 +21,12 @@
 #include <QJsonArray>
 
 #include "dbus_gen_system_helper_interface.h"
+#include "module/dbus_ipc/dbus_system_helper_common.h"
+#include "module/dbus_ipc/dbus_package_manager_common.h"
 #include "module/util/config/config.h"
 #include "module/util/httpclient.h"
 #include "module/util/sysinfo.h"
 #include "module/util/runner.h"
-#include "module/dbus_ipc/dbus_system_helper_common.h"
 
 #include "app_status.h"
 #include "appinfo_cache.h"
@@ -56,6 +57,55 @@ package::Ref toRef(const InstallParamOption &installOption)
     return ref;
 }
 
+void updateHostShare(const QString &sharePath)
+{
+    // 更新desktop database
+    auto retRunner = runner::Runner("update-desktop-database", {sharePath + "/applications/"}, 1000 * 60 * 1);
+    if (!retRunner) {
+        qWarning() << "warning: update desktop database of " + sharePath + "/applications/ failed!";
+    }
+
+    // 更新mime type database
+    if (linglong::util::dirExists(sharePath + "/mime/packages")) {
+        auto retUpdateMime = runner::Runner("update-mime-database", {sharePath + "/mime/"}, 1000 * 60 * 1);
+        if (!retUpdateMime) {
+            qWarning() << "warning: update mime type database of " + sharePath + "/mime/ failed!";
+        }
+    }
+
+    // 更新 glib-2.0/schemas
+    if (linglong::util::dirExists(sharePath + "/glib-2.0/schemas")) {
+        auto retUpdateSchemas =
+            runner::Runner("glib-compile-schemas", {sharePath + "/glib-2.0/schemas"}, 1000 * 60 * 1);
+        if (!retUpdateSchemas) {
+            qWarning() << "warning: update schemas of " + sharePath + "/glib-2.0/schemas failed!";
+        }
+    }
+}
+
+QString getDBusCallerUsername(QDBusContext &ctx)
+{
+    QDBusReply<uint> dbusReply = ctx.connection().interface()->serviceUid(ctx.message().service());
+    if (dbusReply.isValid()) {
+        return util::getUserName(dbusReply.value());
+    }
+    // FIXME: must reject request
+    qCritical() << "can not find caller uid";
+    return "";
+}
+
+uid_t getDBusCallerUid(QDBusContext &ctx)
+{
+    QDBusReply<uint> dbusReply = ctx.connection().interface()->serviceUid(ctx.message().service());
+
+    if (dbusReply.isValid()) {
+        return dbusReply.value();
+    }
+    // FIXME: must reject request
+    qCritical() << "can not find caller uid";
+    return -1;
+}
+
 std::unique_ptr<package::AppMetaInfo> takeLatestApp(const QString &appId, package::AppMetaInfoList &appList)
 {
     int latestIndex = 0;
@@ -74,10 +124,11 @@ std::unique_ptr<package::AppMetaInfo> takeLatestApp(const QString &appId, packag
 }
 
 PackageManagerPrivate::PackageManagerPrivate(PackageManager *parent)
-    : sysLinglongInstalltions(linglong::util::getLinglongRootPath() + "/entries/share")
+    : entriesSharePath(linglong::util::getLinglongRootPath() + "/entries/share")
     , kAppInstallPath(linglong::util::getLinglongRootPath() + "/layers/")
     , kLocalRepoPath(linglong::util::getLinglongRootPath())
     , kRemoteRepoName("repo")
+    , ostreeRepo(kLocalRepoPath)
     , systemHelperInterface(linglong::SystemHelperDBusServiceName, linglong::SystemHelperDBusPath,
                             []() -> QDBusConnection {
                                 auto address = QString(getenv("LINGLONG_SYSTEM_HELPER_ADDRESS"));
@@ -86,7 +137,6 @@ PackageManagerPrivate::PackageManagerPrivate(PackageManager *parent)
                                 }
                                 return QDBusConnection::systemBus();
                             }())
-    , ostreeRepo(kLocalRepoPath)
     , q_ptr(parent)
 {
 }
@@ -180,7 +230,7 @@ bool PackageManagerPrivate::loadAppInfo(const QString &jsonString, linglong::pac
  *
  * @return bool: true:成功 false:失败
  */
-bool PackageManagerPrivate::getAppInfofromServer(const QString &pkgName, const QString &pkgVer, const QString &pkgArch,
+bool PackageManagerPrivate::getAppInfoFromServer(const QString &pkgName, const QString &pkgVer, const QString &pkgArch,
                                                  QString &appData, QString &err)
 {
     // FIXME: replace version latest to ""
@@ -188,7 +238,7 @@ bool PackageManagerPrivate::getAppInfofromServer(const QString &pkgName, const Q
 
     bool ret = G_HTTPCLIENT->queryRemoteApp(pkgName, queryVer, pkgArch, appData);
     if (!ret) {
-        err = "getAppInfofromServer err, " + appData + " ,please check the network";
+        err = "getAppInfoFromServer err, " + appData + " ,please check the network";
         qCritical() << err;
         qCritical().noquote() << "receive from server:" << appData;
         return false;
@@ -242,92 +292,6 @@ bool PackageManagerPrivate::downloadAppData(const QString &pkgName, const QStrin
     return ret;
 }
 
-Reply PackageManagerPrivate::GetDownloadStatus(const ParamOption &paramOption, int type)
-{
-    Reply reply;
-    QString appId = paramOption.appId.trimmed();
-    QString version = paramOption.version.trimmed();
-    QString arch = linglong::util::hostArch();
-    QString channel = paramOption.channel.trimmed();
-    QString appModule = paramOption.appModule.trimmed();
-    QString latestVersion = version;
-    if (version.isEmpty() || type == 1) {
-        if (type == 1) {
-            // 判断是否已安装 bug 146229
-            if (!linglong::util::getAppInstalledStatus(appId, "", arch, channel, appModule, "")) {
-                reply.message = appId + ", version:" + version + ", arch:" + arch + ", channel:" + channel
-                                + ", module:" + appModule + " not installed";
-                reply.code = STATUS_CODE(kPkgNotInstalled);
-                appState.insert(appId + "/" + version + "/" + arch, reply);
-                return reply;
-            }
-        }
-        QString appData = "";
-        // 安装不查缓存
-        auto ret = getAppInfofromServer(appId, "", arch, appData, reply.message);
-        if (!ret) {
-            reply.code = STATUS_CODE(kPkgInstallFailed);
-            return reply;
-        }
-
-        linglong::package::AppMetaInfoList appList;
-        ret = loadAppInfo(appData, appList, reply.message);
-        if (!ret || appList.size() < 1) {
-            reply.message = "app:" + appId + ", version:" + paramOption.version + " not found in repo";
-            qCritical() << reply.message;
-            reply.code = STATUS_CODE(kPkgInstallFailed);
-            return reply;
-        }
-
-        // 查找最高版本
-        linglong::package::AppMetaInfo *appInfo = getLatestApp(appId, appList);
-        latestVersion = appInfo->version;
-    }
-
-    if (type > 0) {
-        reply.message = appId + " is updating...";
-    } else {
-        reply.message = appId + " is installing...";
-    }
-
-    // 获取到完成状态则返回
-    QString key = appId + "/" + version + "/" + arch;
-    int dstState = type > 0 ? STATUS_CODE(kErrorPkgUpdateSuccess) : STATUS_CODE(kPkgInstallSuccess);
-    if (appState.contains(key) && appState[key].code == dstState) {
-        return appState[key];
-    } else {
-        // Fix to do get more specific param 首次安装应用的时候 安装runtime 提示不准
-        QString fileName = QStringList {channel, appId, latestVersion, arch, appModule}.join("-");
-        QString filePath = "/tmp/.linglong/" + fileName;
-        QFile progressFile(filePath);
-        if (progressFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QStringList ret = QString(progressFile.readAll()).split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
-            if (ret.size() > 1) {
-                QStringList processList = ret.at(1).trimmed().split("\u001B8");
-                reply.message = processList.at(processList.size() - 1).trimmed();
-            }
-            qInfo() << reply.message;
-            progressFile.close();
-        }
-        if (type > 0) {
-            reply.code = STATUS_CODE(kPkgUpdating);
-        } else {
-            reply.code = STATUS_CODE(kPkgInstalling);
-        }
-    }
-    // 下载过程中有异常直接返回
-    if (appState.contains(key)) {
-        // 对于更新操作，下载完成了需要等待卸载完成
-        if (type == 1) {
-            if (appState[key].code == STATUS_CODE(kPkgInstallSuccess)) {
-                appState[key].code = STATUS_CODE(kPkgUpdating);
-            }
-        }
-        return appState[key];
-    }
-    return reply;
-}
-
 /*
  * 安装应用runtime
  *
@@ -347,7 +311,7 @@ bool PackageManagerPrivate::installRuntime(const QString &runtimeId, const QStri
     linglong::package::AppMetaInfoList appList;
     QString appData = "";
 
-    bool ret = getAppInfofromServer(runtimeId, runtimeVer, runtimeArch, appData, err);
+    bool ret = getAppInfoFromServer(runtimeId, runtimeVer, runtimeArch, appData, err);
     if (!ret) {
         return false;
     }
@@ -376,9 +340,7 @@ bool PackageManagerPrivate::installRuntime(const QString &runtimeId, const QStri
 
     // 更新本地数据库文件
     QString userName = linglong::util::getUserName();
-    if (noDBusMode) {
-        userName = "deepin-linglong";
-    }
+
     pkgInfo->kind = "runtime";
     // fix 当前服务端不支持按channel查询，返回的结果是默认channel，需要刷新channel/module
     pkgInfo->channel = channel;
@@ -457,7 +419,7 @@ bool PackageManagerPrivate::checkAppBase(const QString &runtime, const QString &
     linglong::package::AppMetaInfoList appList;
     QString appData = "";
 
-    bool ret = getAppInfofromServer(runtimeId, runtimeVer, runtimeArch, appData, err);
+    bool ret = getAppInfoFromServer(runtimeId, runtimeVer, runtimeArch, appData, err);
     if (!ret) {
         return false;
     }
@@ -487,35 +449,6 @@ bool PackageManagerPrivate::checkAppBase(const QString &runtime, const QString &
 }
 
 /*
- * 从给定的软件包列表中查找最新版本的软件包
- *
- * @param appId: 待匹配应用的appId
- * @param appList: 待搜索的软件包列表信息
- *
- * @return AppMetaInfo: 最新版本的软件包
- *
- */
-linglong::package::AppMetaInfo *PackageManagerPrivate::getLatestApp(const QString &appId,
-                                                                    const linglong::package::AppMetaInfoList &appList)
-{
-    linglong::package::AppMetaInfo *latestApp = appList.at(0).data();
-    if (appList.size() == 1) {
-        return latestApp;
-    }
-
-    QString curVersion = linglong::util::APP_MIN_VERSION;
-    for (auto item : appList) {
-        linglong::util::AppVersion dstVersion(curVersion);
-        linglong::util::AppVersion iterVersion(item->version);
-        if (appId == item->appId && iterVersion.isBigThan(dstVersion)) {
-            curVersion = item->version;
-            latestApp = item.data();
-        }
-    }
-    return latestApp;
-}
-
-/*
  * 安装应用时更新包括desktop文件在内的配置文件
  *
  * @param appId: 应用的appId
@@ -540,10 +473,10 @@ void PackageManagerPrivate::addAppConfig(const QString &appId, const QString &ve
         // 删掉安装配置链接文件
         if (linglong::util::dirExists(installPath + "/" + arch + "/outputs/share")) {
             const QString appEntriesDirPath = installPath + "/" + arch + "/outputs/share";
-            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, sysLinglongInstalltions);
+            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, entriesSharePath);
         } else {
             const QString appEntriesDirPath = installPath + "/" + arch + "/entries";
-            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, sysLinglongInstalltions);
+            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, entriesSharePath);
         }
     }
 
@@ -551,10 +484,10 @@ void PackageManagerPrivate::addAppConfig(const QString &appId, const QString &ve
     // 链接应用配置文件到系统配置目录
     if (linglong::util::dirExists(savePath + "/outputs/share")) {
         const QString appEntriesDirPath = savePath + "/outputs/share";
-        linglong::util::linkDirFiles(appEntriesDirPath, sysLinglongInstalltions);
+        linglong::util::linkDirFiles(appEntriesDirPath, entriesSharePath);
     } else {
         const QString appEntriesDirPath = savePath + "/entries";
-        linglong::util::linkDirFiles(appEntriesDirPath, sysLinglongInstalltions);
+        linglong::util::linkDirFiles(appEntriesDirPath, entriesSharePath);
     }
 }
 
@@ -584,20 +517,20 @@ void PackageManagerPrivate::delAppConfig(const QString &appId, const QString &ve
         // 删掉安装配置链接文件
         if (linglong::util::dirExists(installPath + "/" + arch + "/outputs/share")) {
             const QString appEntriesDirPath = installPath + "/" + arch + "/outputs/share";
-            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, sysLinglongInstalltions);
+            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, entriesSharePath);
         } else {
             const QString appEntriesDirPath = installPath + "/" + arch + "/entries";
-            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, sysLinglongInstalltions);
+            linglong::util::removeDstDirLinkFiles(appEntriesDirPath, entriesSharePath);
         }
 
         const QString savePath = kAppInstallPath + appId + "/" + it->version + "/" + arch;
         // 链接应用配置文件到系统配置目录
         if (linglong::util::dirExists(savePath + "/outputs/share")) {
             const QString appEntriesDirPath = savePath + "/outputs/share";
-            linglong::util::linkDirFiles(appEntriesDirPath, sysLinglongInstalltions);
+            linglong::util::linkDirFiles(appEntriesDirPath, entriesSharePath);
         } else {
             const QString appEntriesDirPath = savePath + "/entries";
-            linglong::util::linkDirFiles(appEntriesDirPath, sysLinglongInstalltions);
+            linglong::util::linkDirFiles(appEntriesDirPath, entriesSharePath);
         }
         return;
     }
@@ -606,10 +539,10 @@ void PackageManagerPrivate::delAppConfig(const QString &appId, const QString &ve
     // 删掉安装配置链接文件
     if (linglong::util::dirExists(installPath + "/" + arch + "/outputs/share")) {
         const QString appEntriesDirPath = installPath + "/" + arch + "/outputs/share";
-        linglong::util::removeDstDirLinkFiles(appEntriesDirPath, sysLinglongInstalltions);
+        linglong::util::removeDstDirLinkFiles(appEntriesDirPath, entriesSharePath);
     } else {
         const QString appEntriesDirPath = installPath + "/" + arch + "/entries";
-        linglong::util::removeDstDirLinkFiles(appEntriesDirPath, sysLinglongInstalltions);
+        linglong::util::removeDstDirLinkFiles(appEntriesDirPath, entriesSharePath);
     }
 }
 
@@ -626,11 +559,8 @@ void PackageManagerPrivate::delAppConfig(const QString &appId, const QString &ve
  */
 util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *job)
 {
-    QString userName = linglong::util::getUserName();
-    if (noDBusMode) {
-        userName = "deepin-linglong";
-    }
     util::Error result(NoError());
+    QString userName = linglong::util::getUserName();
 
     std::unique_ptr<package::AppMetaInfo> latestMetaInfo;
     std::tie(result, latestMetaInfo) = getLatestPackageMetaInfo(ref);
@@ -646,7 +576,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
     package::Ref targetRef = latestMetaInfo->ref();
     package::Ref runtimeRef(latestMetaInfo->runtime);
     // runtime 未锁版本号时获取最新版本runtime
-    qDebug() << "install package runtimeinfo:" << latestMetaInfo->runtime
+    qDebug() << "install package runtime info:" << latestMetaInfo->runtime
              << ", package runtime version:" << runtimeRef.version;
     QStringList runtimeVersion = runtimeRef.version.split(".");
     std::unique_ptr<package::AppMetaInfo> installRuntimeInfo = nullptr;
@@ -696,7 +626,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
 
     QVariantMap extraData;
     extraData[KeyInstallJobId] = job->id();
-    extraData[KeyInstallJobRef] = targetRef.toString();
+    extraData[KeyInstallJobRef] = targetRef.toSpecString();
 
     auto jobController = job->controller();
     job->connect(jobController, &util::JobController::progressChanged,
@@ -730,21 +660,21 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
                  });
 
     auto installPath = ostreeRepo.rootOfLayer(targetRef);
-    qDebug() << "check package" << targetRef.toString() << "is installed";
+    qDebug() << "check package" << targetRef.toSpecString() << "is installed";
     if (!isUserAppInstalled(userName, targetRef)) {
         extraData[KeyInstallJobStageProgressBegin] = stagePackageProgressBegin;
         extraData[KeyInstallJobStageProgressEnd] = stagePackageProgressEnd;
         ostreeRepo.pull(targetRef, jobController);
         ostreeRepo.checkout(targetRef, "", installPath);
     } else {
-        qDebug() << "package" << targetRef.toString() << "installed";
+        qDebug() << "package" << targetRef.toSpecString() << "installed";
         job->setProgress(100, 0, "package is already installed");
-        job->setFinish(0, QString("install %1 success").arg(targetRef.toLocalFullRef()));
+        job->setFinish(0, QString("install %1 success").arg(targetRef.toSpecString()));
         return NoError();
     }
 
     auto runtimeInstallPath = ostreeRepo.rootOfLayer(runtimeRef);
-    qDebug() << "check runtime" << runtimeRef.toString() << "is needInstallRuntime" << needInstallRuntime;
+    qDebug() << "check runtime" << runtimeRef.toSpecString() << "is need install " << needInstallRuntime;
     if (needInstallRuntime) {
         // FIXME: update database
         // install runtime
@@ -755,10 +685,10 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
         auto ret = linglong::util::insertAppRecord(installRuntimeInfo.get(), "user", userName);
         qDebug() << "insertAppRecord" << runtimeRef.toString() << ret;
     } else {
-        job->setProgress(stageRuntimeProgressEnd, "runtime " + runtimeRef.toString() + " installed");
+        job->setProgress(stageRuntimeProgressEnd, "runtime " + runtimeRef.toSpecString() + " installed");
     }
 
-    qDebug() << "check base" << baseRef.toString() << "is installed";
+    qDebug() << "check base" << baseRef.toSpecString() << "is installed";
     auto baseInstallPath = ostreeRepo.rootOfLayer(baseRef);
     if (needInstallBase) {
         // FIXME: update database
@@ -781,7 +711,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
 
     // process install portal
     job->setProgress(98, 2, "process post install portal...");
-    qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath << ref.toLocalFullRef();
+    qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath << ref.toSpecString();
     QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toSpecString(), {});
     if (!reply.isValid()) {
         qCritical() << "process post install portal failed:" << reply.error();
@@ -796,459 +726,23 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
     }
     job->setProgress(100, 0, "update database finish");
 
-    job->setFinish(0, QString("install %1 success").arg(targetRef.toLocalFullRef()));
+    job->setFinish(0, QString("install %1 success").arg(targetRef.toSpecString()));
     return NoError();
 }
 
-/*!
- * 在线安装软件包
- * @param installParamOption
- */
-
-Reply PackageManagerPrivate::Install(const InstallParamOption &installParamOption)
+util::Error PackageManagerPrivate::update(const package::Ref &ref, util::Job *job)
 {
-    Reply reply;
     QString userName = linglong::util::getUserName();
-    if (noDBusMode) {
-        userName = "deepin-linglong";
+
+    // found ref to update
+    auto targetRef = ref;
+    // check is install
+    if (!isUserAppInstalled(userName, targetRef)) {
+        return NewError(-1, "Installed");
     }
 
-    QString appId = installParamOption.appId.trimmed();
-    QString arch = installParamOption.arch.trimmed().toLower();
-    QString version = installParamOption.version.trimmed();
-    QString channel = installParamOption.channel.trimmed();
-    QString appModule = installParamOption.appModule.trimmed();
-
-    if (arch.isEmpty()) {
-        arch = linglong::util::hostArch();
-    }
-
-    if (channel.isEmpty()) {
-        channel = "linglong";
-    }
-    if (appModule.isEmpty()) {
-        appModule = "runtime";
-    }
-
-    package::Ref ref("", channel, appId, version, arch, appModule);
-
-    // 异常后重新安装需要清除上次状态
-    appState.remove(appId + "/" + version + "/" + arch);
-
-    if (arch != linglong::util::hostArch()) {
-        reply.message = "app arch:" + arch + " not support in host";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    QString appData = "";
-    // 安装不查缓存
-    auto ret = getAppInfofromServer(appId, version, arch, appData, reply.message);
-    if (!ret) {
-        reply.code = STATUS_CODE(kPkgInstallFailed);
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    linglong::package::AppMetaInfoList appList;
-    ret = loadAppInfo(appData, appList, reply.message);
-    if (!ret || appList.size() < 1) {
-        reply.message = "app:" + appId + ", version:" + version + " not found in repo";
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kPkgInstallFailed);
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    // 查找最高版本，多版本场景安装应用appId要求完全匹配
-    linglong::package::AppMetaInfo *appInfo = getLatestApp(appId, appList);
-    // 不支持模糊安装
-    if (appId != appInfo->appId) {
-        reply.message = "app:" + appId + ", version:" + version + " not found in repo";
-        qCritical() << "found latest app:" << appInfo->appId << ", " << reply.message;
-        reply.code = STATUS_CODE(kPkgInstallFailed);
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    // 判断对应版本的应用是否已安装
-    if (isUserAppInstalled("", ref)) {
-        reply.code = STATUS_CODE(kPkgAlreadyInstalled);
-        reply.message = appInfo->appId + ", version: " + appInfo->version + " already installed";
-        qCritical() << reply.message;
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    if (linglong::util::getAppInstalledStatus(appInfo->appId, appInfo->version, "", channel, appModule, "")) {
-        reply.code = STATUS_CODE(kPkgAlreadyInstalled);
-        reply.message = appInfo->appId + ", version: " + appInfo->version + " already installed";
-        qCritical() << reply.message;
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    // 检查软件包依赖的runtime安装状态
-    ret = checkAppRuntime(appInfo->runtime, channel, appModule, reply.message);
-    if (!ret) {
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kInstallRuntimeFailed);
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    // 检查软件包依赖的base安装状态
-    if (!linglong::util::isDeepinSysProduct()) {
-        ret = checkAppBase(appInfo->runtime, channel, appModule, reply.message);
-        if (!ret) {
-            qCritical() << reply.message;
-            reply.code = STATUS_CODE(kInstallBaseFailed);
-            appState.insert(appId + "/" + version + "/" + arch, reply);
-            return reply;
-        }
-    }
-
-    // 下载在线包数据到目标目录
-    QString savePath = kAppInstallPath + appInfo->appId + "/" + appInfo->version + "/" + appInfo->arch;
-    if ("devel" == appModule) {
-        savePath.append("/" + appModule);
-    }
-    ret = downloadAppData(appInfo->appId, appInfo->version, appInfo->arch, channel, appModule, savePath, reply.message);
-    if (!ret) {
-        qCritical() << "downloadAppData app:" << appInfo->appId << ", version:" << appInfo->version << " error";
-        reply.code = STATUS_CODE(kLoadPkgDataFailed);
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    // 删除下载进度的重定向文件
-    QString fileName = QStringList {channel, appInfo->appId, appInfo->version, appInfo->arch, appModule}.join("-");
-    QString filePath = "/tmp/.linglong/" + fileName;
-    QFile(filePath).remove();
-
-    // 链接应用配置文件到系统配置目录
-    addAppConfig(appInfo->appId, appInfo->version, appInfo->arch);
-
-    // 更新desktop database
-    auto retRunner = linglong::runner::Runner("update-desktop-database", {sysLinglongInstalltions + "/applications/"},
-                                              1000 * 60 * 1);
-    if (!retRunner) {
-        qWarning() << "warning: update desktop database of " + sysLinglongInstalltions + "/applications/ failed!";
-    }
-
-    // 更新mime type database
-    if (linglong::util::dirExists(sysLinglongInstalltions + "/mime/packages")) {
-        auto retUpdateMime =
-            linglong::runner::Runner("update-mime-database", {sysLinglongInstalltions + "/mime/"}, 1000 * 60 * 1);
-        if (!retUpdateMime) {
-            qWarning() << "warning: update mime type database of " + sysLinglongInstalltions + "/mime/ failed!";
-        }
-    }
-
-    // 更新 glib-2.0/schemas
-    if (linglong::util::dirExists(sysLinglongInstalltions + "/glib-2.0/schemas")) {
-        auto retUpdateSchemas = linglong::runner::Runner(
-            "glib-compile-schemas", {sysLinglongInstalltions + "/glib-2.0/schemas"}, 1000 * 60 * 1);
-        if (!retUpdateSchemas) {
-            qWarning() << "warning: update schemas of " + sysLinglongInstalltions + "/glib-2.0/schemas failed!";
-        }
-    }
-
-    // 更新本地数据库文件
-    appInfo->kind = "app";
-    // fix 当前服务端不支持按channel查询，返回的结果是默认channel，需要刷新channel/module
-    appInfo->channel = channel;
-    appInfo->module = appModule;
-
-    linglong::util::insertAppRecord(appInfo, "user", userName);
-
-    // process portal after install
-    {
-        auto installPath = savePath;
-        qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath, ref.toLocalFullRef();
-        QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toString(), {});
-        if (!reply.isValid()) {
-            qCritical() << "process post install portal failed:" << reply.error();
-        }
-    }
-
-    reply.code = STATUS_CODE(kPkgInstallSuccess);
-    reply.message = "install " + appInfo->appId + ", version:" + appInfo->version + " success";
-    qInfo() << reply.message;
-    appState.insert(appId + "/" + version + "/" + arch, reply);
-    return reply;
-}
-
-/*
- * 查询软件包
- *
- * @param paramOption 查询命令参数
- *
- * @return QueryReply dbus方法调用应答
- */
-QueryReply PackageManagerPrivate::Query(const QueryParamOption &paramOption)
-{
-    QueryReply reply;
-    QString appId = paramOption.appId.trimmed();
-    bool ret = false;
-    if ("installed" == appId) {
-        ret = linglong::util::queryAllInstalledApp("", reply.result, reply.message);
-        if (ret) {
-            reply.code = STATUS_CODE(kErrorPkgQuerySuccess);
-            reply.message = "query " + appId + " success";
-        } else {
-            reply.code = STATUS_CODE(kErrorPkgQueryFailed);
-        }
-        return reply;
-    }
-
-    linglong::package::AppMetaInfoList pkgList;
-    QString arch = linglong::util::hostArch();
-
-    QString appData = "";
-    int status = STATUS_CODE(kFail);
-    if (!paramOption.force) {
-        status = linglong::util::queryLocalCache(appId, appData);
-    }
-
-    bool fromServer = false;
-    // 缓存查不到从服务器查
-    if (status != STATUS_CODE(kSuccess)) {
-        ret = getAppInfofromServer(appId, "", arch, appData, reply.message);
-        if (!ret) {
-            reply.code = STATUS_CODE(kErrorPkgQueryFailed);
-            qCritical() << reply.message;
-            return reply;
-        }
-        fromServer = true;
-    }
-
-    QJsonValue jsonValue;
-    ret = getAppJsonArray(appData, jsonValue, reply.message);
-    if (!ret) {
-        reply.code = STATUS_CODE(kErrorPkgQueryFailed);
-        qCritical() << reply.message;
-        return reply;
-    }
-    // 若从服务器查询得到正确的数据则更新缓存
-    if (fromServer) {
-        linglong::util::updateCache(appId, appData);
-    }
-
-    QJsonDocument document = QJsonDocument(jsonValue.toArray());
-    reply.code = STATUS_CODE(kErrorPkgQuerySuccess);
-    reply.message = "query " + appId + " success";
-    reply.result = QString(document.toJson());
-    return reply;
-}
-
-Reply PackageManagerPrivate::Uninstall(const UninstallParamOption &paramOption)
-{
-    Q_Q(PackageManager);
-    Reply reply;
-
-    QString appId = paramOption.appId.trimmed();
-    QString version = paramOption.version.trimmed();
-    QString arch = paramOption.arch.trimmed().toLower();
-
-    if (arch.isEmpty()) {
-        arch = linglong::util::hostArch();
-    }
-
-    if (!version.isEmpty() && paramOption.delAllVersion) {
-        reply.message = "uninstall " + appId + "/" + version + " is in conflict with all-version param";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        qCritical() << reply.message;
-        return reply;
-    }
-
-    QString channel = paramOption.channel.trimmed();
-    QString appModule = paramOption.appModule.trimmed();
-    if (channel.isEmpty()) {
-        channel = "linglong";
-    }
-    if (appModule.isEmpty()) {
-        appModule = "runtime";
-    }
-
-    package::Ref ref("", channel, appId, version, arch, appModule);
-
-    // 判断是否已安装 不校验用户名
-    QString userName = linglong::util::getUserName();
-    if (!linglong::util::getAppInstalledStatus(appId, version, arch, channel, appModule, "")) {
-        reply.message = appId + ", version:" + version + ", arch:" + arch + ", channel:" + channel
-                        + ", module:" + appModule + " not installed";
-        reply.code = STATUS_CODE(kPkgNotInstalled);
-        qCritical() << reply.message;
-        return reply;
-    }
-
-    linglong::package::AppMetaInfoList pkgList;
-    if (paramOption.delAllVersion) {
-        linglong::util::getAllVerAppInfo(appId, "", arch, "", pkgList);
-    } else {
-        // 根据已安装文件查询已安装软件包信息
-        linglong::util::getInstalledAppInfo(appId, version, arch, channel, appModule, "", pkgList);
-    }
-
-    QStringList delVersionList;
-    for (auto it : pkgList) {
-        bool isRoot = (getgid() == 0) ? true : false;
-        qInfo() << "install app user:" << it->user << ", current user:" << userName
-                << ", has root permission:" << isRoot;
-
-        // 非root用户卸载不属于该用户安装的应用
-        if (userName != it->user && !isRoot) {
-            reply.code = STATUS_CODE(kPkgUninstallFailed);
-            reply.message = appId + " uninstall permission deny";
-            qCritical() << reply.message;
-            return reply;
-        }
-
-        if (paramOption.delAllVersion && (it->channel != channel || it->module != appModule)) {
-            continue;
-        }
-
-        QString err = "";
-        // 更新本地repo仓库
-        bool ret = OSTREE_REPO_HELPER->ensureRepoEnv(kLocalRepoPath, err);
-        if (!ret) {
-            qCritical() << err;
-            reply.code = STATUS_CODE(kPkgUninstallFailed);
-            reply.message = "uninstall local repo not exist";
-            return reply;
-        }
-        // 应从安装数据库获取应用所属仓库信息 to do fix
-        QVector<QString> qrepoList;
-        ret = OSTREE_REPO_HELPER->getRemoteRepoList(kLocalRepoPath, qrepoList, err);
-        if (!ret) {
-            qCritical() << err;
-            reply.code = STATUS_CODE(kPkgUninstallFailed);
-            reply.message = "uninstall remote repo not exist";
-            return reply;
-        }
-
-        // new ref format --> channel/org.deepin.calculator/1.2.2/x86_64/module
-        QString matchRef =
-            QString("%1/%2/%3/%4/%5").arg(channel).arg(it->appId).arg(it->version).arg(arch).arg(appModule);
-
-        qInfo() << "Uninstall app ref:" << matchRef;
-        ret = OSTREE_REPO_HELPER->repoDeleteDatabyRef(kLocalRepoPath, qrepoList[0], matchRef, err);
-        if (!ret) {
-            qCritical() << err;
-            reply.code = STATUS_CODE(kPkgUninstallFailed);
-            reply.message = "uninstall " + appId + ", version:" + it->version + " failed";
-            return reply;
-        }
-
-        // A 用户 sudo 卸载 B 用户安装的软件
-        if (isRoot) {
-            userName = "";
-        }
-        // 更新安装数据库
-        linglong::util::deleteAppRecord(appId, it->version, arch, channel, appModule, userName);
-
-        delAppConfig(appId, it->version, arch);
-        // 更新desktop database
-        auto retRunner = linglong::runner::Runner("update-desktop-database",
-                                                  {sysLinglongInstalltions + "/applications/"}, 1000 * 60 * 1);
-        if (!retRunner) {
-            qWarning() << "warning: update desktop database of " + sysLinglongInstalltions + "/applications/ failed!";
-        }
-
-        // 更新mime type database
-        if (linglong::util::dirExists(sysLinglongInstalltions + "/mime/packages")) {
-            auto retUpdateMime =
-                linglong::runner::Runner("update-mime-database", {sysLinglongInstalltions + "/mime/"}, 1000 * 60 * 1);
-            if (!retUpdateMime) {
-                qWarning() << "warning: update mime type database of " + sysLinglongInstalltions + "/mime/ failed!";
-            }
-        }
-
-        // 更新 glib-2.0/schemas
-        if (linglong::util::dirExists(sysLinglongInstalltions + "/glib-2.0/schemas")) {
-            auto retUpdateSchemas = linglong::runner::Runner(
-                "glib-compile-schemas", {sysLinglongInstalltions + "/glib-2.0/schemas"}, 1000 * 60 * 1);
-            if (!retUpdateSchemas) {
-                qWarning() << "warning: update schemas of " + sysLinglongInstalltions + "/glib-2.0/schemas failed!";
-            }
-        }
-
-        // 删除应用对应的安装目录
-        const QString installPath = kAppInstallPath + it->appId + "/" + it->version;
-
-        // process portal before uninstall
-        {
-            QVariantMap variantMap;
-            if (paramOption.delAppData) {
-                if (!noDBusMode) {
-                    QDBusReply<uint> dbusReply = q->connection().interface()->serviceUid(q->message().service());
-                    QString caller = "";
-                    if (dbusReply.isValid()) {
-                        caller = getUserName(dbusReply.value());
-                    }
-                    qDebug() << "Uninstall app call user:" << caller << dbusReply.error();
-                    if (!caller.isEmpty()) {
-                        QString appDataPath = QString("/home/%1/.linglong/%2").arg(caller).arg(it->appId);
-                        variantMap.insert(linglong::util::kKeyDelData, appDataPath);
-                    }
-                }
-            }
-            auto packageRootPath = installPath + "/" + arch;
-            qDebug() << "call systemHelperInterface.RuinInstallPortal" << packageRootPath << ref.toLocalFullRef()
-                     << paramOption.delAppData;
-            QDBusReply<void> reply =
-                systemHelperInterface.RuinInstallPortal(packageRootPath, ref.toString(), variantMap);
-            if (!reply.isValid()) {
-                qCritical() << "process pre uninstall portal failed:" << reply.error();
-            }
-        }
-
-        // 删除release版本时需要判断是否存在debug版本
-        if ("devel" != appModule) {
-            if (linglong::util::getAppInstalledStatus(appId, it->version, arch, channel, "devel", "")) {
-                // 删除安装目录下除devel外的所有文件
-                QDir dir(installPath + "/" + arch);
-                dir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
-                QFileInfoList fileList = dir.entryInfoList();
-                foreach (QFileInfo file, fileList) {
-                    if (file.isFile()) {
-                        file.dir().remove(file.fileName());
-                    } else {
-                        if ("devel" != file.fileName()) {
-                            linglong::util::removeDir(file.absoluteFilePath());
-                        }
-                    }
-                }
-            } else {
-                linglong::util::removeDir(installPath);
-            }
-        } else {
-            // 卸载debug版本
-            linglong::util::removeDir(installPath + "/" + arch + "/devel");
-        }
-
-        QDir archDir(installPath + "/" + arch);
-        archDir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
-        if (archDir.entryInfoList().size() <= 0) {
-            linglong::util::removeDir(installPath);
-        }
-
-        QDir dir(kAppInstallPath + it->appId);
-        dir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
-        if (dir.entryInfoList().size() <= 0) {
-            linglong::util::removeDir(kAppInstallPath + it->appId);
-        }
-        qInfo() << "Uninstall del dir:" << installPath;
-        reply.message = "uninstall " + appId + ", version:" + it->version + " success";
-        delVersionList.append(it->version);
-    }
-    reply.code = STATUS_CODE(kPkgUninstallSuccess);
-    if (paramOption.delAllVersion && pkgList.size() > 1) {
-        reply.message = "uninstall " + appId + " " + delVersionList.join(",") + " success";
-    }
-    return reply;
+    install(targetRef, job);
+    return NoError();
 }
 
 bool PackageManagerPrivate::isUserAppInstalled(const QString &userName, const package::Ref &ref)
@@ -1266,138 +760,8 @@ bool PackageManagerPrivate::isUserBaseInstalled(const QString &userName, const p
     return linglong::util::isDeepinSysProduct();
 }
 
-Reply PackageManagerPrivate::Update(const ParamOption &paramOption)
-{
-    Reply reply;
-
-    QString appId = paramOption.appId.trimmed();
-    QString arch = paramOption.arch.trimmed().toLower();
-    QString version = paramOption.version.trimmed();
-    if (arch.isEmpty()) {
-        arch = linglong::util::hostArch();
-    }
-
-    QString channel = paramOption.channel.trimmed();
-    QString appModule = paramOption.appModule.trimmed();
-    if (channel.isEmpty()) {
-        channel = "linglong";
-    }
-    if (appModule.isEmpty()) {
-        appModule = "runtime";
-    }
-
-    // 异常后重新安装需要清除上次状态
-    appState.remove(appId + "/" + version + "/" + arch);
-
-    // 判断是否已安装
-    if (!linglong::util::getAppInstalledStatus(appId, version, arch, channel, appModule, "")) {
-        reply.message = appId + ", version:" + version + ", arch:" + arch + ", channel:" + channel
-                        + ", module:" + appModule + " not installed";
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kPkgNotInstalled);
-
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    // 检查是否存在版本更新
-    linglong::package::AppMetaInfoList pkgList;
-    // 根据已安装文件查询已经安装软件包信息
-    linglong::util::getInstalledAppInfo(appId, version, arch, channel, appModule, "", pkgList);
-    if (pkgList.size() != 1) {
-        reply.message = "query local app:" + appId + " info err";
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kErrorPkgUpdateFailed);
-
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    auto installedApp = pkgList.at(0);
-    QString currentVersion = installedApp->version;
-    QString appData = QString();
-    auto ret = getAppInfofromServer(appId, "", arch, appData, reply.message);
-    if (!ret) {
-        reply.message = "query server app:" + appId + " info err";
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kErrorPkgUpdateFailed);
-
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    linglong::package::AppMetaInfoList serverPkgList;
-    ret = loadAppInfo(appData, serverPkgList, reply.message);
-    if (!ret) {
-        reply.message = "load app:" + appId + " info err";
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kErrorPkgUpdateFailed);
-
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    auto serverApp = getLatestApp(appId, serverPkgList);
-    if (currentVersion == serverApp->version) {
-        reply.message = "app:" + appId + ", latest version:" + currentVersion + " already installed";
-        qCritical() << reply.message;
-        // bug 149881
-        reply.code = STATUS_CODE(kErrorPkgUpdateSuccess);
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    // 判断是否已安装最新版本软件
-    if (linglong::util::getAppInstalledStatus(appId, serverApp->version, arch, channel, appModule, "")) {
-        reply.message = appId + ", latest version:" + serverApp->version + " already installed";
-        qCritical() << reply.message;
-        // bug 149881
-        reply.code = STATUS_CODE(kErrorPkgUpdateSuccess);
-
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    InstallParamOption installParamOption;
-    installParamOption.appId = appId;
-    installParamOption.version = serverApp->version;
-    installParamOption.arch = arch;
-    installParamOption.channel = channel;
-    installParamOption.appModule = appModule;
-    reply = Install({installParamOption});
-    if (reply.code != STATUS_CODE(kPkgInstallSuccess)) {
-        reply.message = "download app:" + appId + ", version:" + installParamOption.version + " err";
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kErrorPkgUpdateFailed);
-
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    UninstallParamOption uninstallParamOption;
-    uninstallParamOption.appId = appId;
-    uninstallParamOption.version = currentVersion;
-    uninstallParamOption.channel = channel;
-    uninstallParamOption.appModule = appModule;
-    reply = Uninstall(uninstallParamOption);
-    if (reply.code != STATUS_CODE(kPkgUninstallSuccess)) {
-        reply.message = "uninstall app:" + appId + ", version:" + currentVersion + " err";
-        qCritical() << reply.message;
-        reply.code = STATUS_CODE(kErrorPkgUpdateFailed);
-
-        appState.insert(appId + "/" + version + "/" + arch, reply);
-        return reply;
-    }
-
-    reply.code = STATUS_CODE(kErrorPkgUpdateSuccess);
-    reply.message = "update " + appId + " success, version:" + currentVersion + " --> " + serverApp->version;
-    appState.insert(appId + "/" + version + "/" + arch, reply);
-    return reply;
-}
-
 package::Ref PackageManagerPrivate::getRuntimeBaseRef(const package::Ref &ref)
 {
-    // fix to do dealwith baseRef
     return package::Ref(QString());
 }
 
@@ -1410,11 +774,12 @@ PackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref)
     QString appData = "";
 
     // 安装不查缓存
-    auto ret = getAppInfofromServer(ref.appId, ref.version, ref.arch, appData, reply.message);
+    auto ret = getAppInfoFromServer(ref.appId, ref.version, ref.arch, appData, reply.message);
     if (!ret) {
-        qDebug() << "appData from server" << appData;
-        return {NewError(STATUS_CODE(kPkgInstallFailed), ""), std::move(latestMetaInfo)};
+        return {NewError(STATUS_CODE(kPkgInstallFailed), reply.message), std::move(latestMetaInfo)};
     }
+
+    qDebug() << "appData from server" << appData;
 
     linglong::package::AppMetaInfoList appList;
     ret = loadAppInfo(appData, appList, reply.message);
@@ -1446,53 +811,177 @@ util::Error PackageManagerPrivate::exportFiles(const package::Ref &ref)
 {
     // 链接应用配置文件到系统配置目录
     addAppConfig(ref.appId, ref.version, ref.arch);
+    updateHostShare(entriesSharePath);
+    return NoError();
+}
 
-    // 更新desktop database
-    auto retRunner = linglong::runner::Runner("update-desktop-database", {sysLinglongInstalltions + "/applications/"},
-                                              1000 * 60 * 1);
-    if (!retRunner) {
-        qWarning() << "warning: update desktop database of " + sysLinglongInstalltions + "/applications/ failed!";
+/*!
+ * TODO: support user only delete owner record, it and map that user <--> version.
+ * ref:
+ *   - com.qq.music.deepin: remove all version
+ *   - com.qq.music.deepin/1.1.3: single version and all arch & module
+ *   - com.qq.music.deepin/1.1.3/x86_64: single version and arch and all module
+ *   - com.qq.music.deepin/1.1.3/x86_64/devel: single version and arch and module
+ * @param ref
+ * @param options
+ * @return
+ */
+util::Error PackageManagerPrivate::uninstall(uid_t uid, const package::Ref &ref, const QVariantMap &options)
+{
+    auto kDeleteData = "OptDeleteData";
+    auto kDeleteAllVersion = "OptDeleteAllVersion";
+
+    qDebug() << "uninstall" << ref.toSpecString() << "with" << options;
+
+    Q_Q(PackageManager);
+    util::Error error;
+
+    bool deleteAllVersion = options[kDeleteAllVersion].toBool();
+    bool deleteData = options[kDeleteData].toBool();
+
+    auto uninstallRefs = findRefsToUninstall(ref, deleteAllVersion);
+    if (uninstallRefs.isEmpty()) {
+        return NewError(QDBusError::InternalError, "package not installed");
     }
 
-    // 更新mime type database
-    if (linglong::util::dirExists(sysLinglongInstalltions + "/mime/packages")) {
-        auto retUpdateMime =
-            linglong::runner::Runner("update-mime-database", {sysLinglongInstalltions + "/mime/"}, 1000 * 60 * 1);
-        if (!retUpdateMime) {
-            qWarning() << "warning: update mime type database of " + sysLinglongInstalltions + "/mime/ failed!";
-        }
+    for (auto const &uninstallRef : uninstallRefs) {
+        // remove package form database
+        pdb.remove(util::getUserName(uid), uninstallRef);
+        prunePackageFiles(uninstallRef);
     }
 
-    // 更新 glib-2.0/schemas
-    if (linglong::util::dirExists(sysLinglongInstalltions + "/glib-2.0/schemas")) {
-        auto retUpdateSchemas = linglong::runner::Runner(
-            "glib-compile-schemas", {sysLinglongInstalltions + "/glib-2.0/schemas"}, 1000 * 60 * 1);
-        if (!retUpdateSchemas) {
-            qWarning() << "warning: update schemas of " + sysLinglongInstalltions + "/glib-2.0/schemas failed!";
+    updateHostShare(entriesSharePath);
+
+    if (deleteData) {
+        // delete user data with system-helper
+        QDBusReply<void> reply = systemHelperInterface.DeletePackageUserData(uid, ref.toSpecString(), {});
+        if (!reply.isValid()) {
+            qCritical() << "process pre uninstall portal failed:" << reply.error();
         }
     }
 
     return NoError();
 }
 
-QString PackageManagerPrivate::getUserName(uid_t uid)
+util::Error PackageManagerPrivate::prunePackageFiles(const package::Ref &ref)
 {
-    struct passwd *user;
-    user = getpwuid(uid);
-    if (user) {
-        return QString::fromLocal8Bit(user->pw_name);
+    // remove ostree and layer files
+    auto error = ostreeRepo.remove(ref);
+    if (!error.success()) {
+        // FIXME: it seem not import to failed here
+        return WrapError(error, "remove ostree refs failed");
     }
-    return "";
+    // remove entries files
+    delAppConfig(ref.appId, ref.version, ref.arch);
+
+    // process portal before uninstall
+    if (ref.module == kMainModule) {
+        const QString packageRootPath = ostreeRepo.rootOfLayer(ref);
+        qDebug() << "call systemHelperInterface.RuinInstallPortal" << packageRootPath << ref.toSpecString();
+        QDBusReply<void> reply = systemHelperInterface.RuinInstallPortal(packageRootPath, ref.toSpecString(), {});
+        if (!reply.isValid()) {
+            qCritical() << "process pre uninstall portal failed:" << reply.error();
+        }
+    }
+
+    // TODO: do remove file
+    return NoError();
+}
+
+QList<package::Ref> PackageManagerPrivate::findRefsToUninstall(const package::Ref &ref, bool deleteAllVersion)
+{
+    QList<package::Ref> refs;
+    qDebug() << "findRefsToUninstall" << deleteAllVersion;
+    // FIXME: reply.message = "uninstall " + appId + "/" + version + " is in conflict with all-version param";
+    if (!pdb.isPackageInstalled("", ref)) {
+        qDebug() << "can not find installed package of" << ref.toSpecString();
+        // FIXME: message so notify user install
+        return {};
+    }
+
+    package::AppMetaInfoList pkgList;
+    if (deleteAllVersion) {
+        util::getAllVerAppInfo(ref.appId, "", ref.appId, "", pkgList);
+    } else {
+        // 根据已安装文件查询已安装软件包信息
+        auto version = ref.version;
+        if (version == kDefaultVersion) {
+            version = "";
+        }
+        util::getInstalledAppInfo(ref.appId, version, ref.arch, ref.channel, ref.module, "", pkgList);
+    }
+    qDebug() << "pkgList" << pkgList.size();
+
+    for (auto const &metaInfo : pkgList) {
+        refs << metaInfo->ref();
+    }
+    return refs;
+}
+
+/*
+ * 查询软件包
+ *
+ * @param paramOption 查询命令参数
+ *
+ * @return QueryReply dbus方法调用应答
+ */
+QueryReply PackageManagerPrivate::Query(const QueryParamOption &paramOption)
+{
+    QueryReply reply;
+    QString appId = paramOption.appId.trimmed();
+    bool ret = false;
+    if ("installed" == appId) {
+        ret = linglong::util::queryAllInstalledApp("", reply.result, reply.message);
+        if (ret) {
+            reply.code = STATUS_CODE(kErrorPkgQuerySuccess);
+            reply.message = "query " + appId + " success";
+        } else {
+            reply.code = STATUS_CODE(kErrorPkgQueryFailed);
+        }
+        return reply;
+    }
+    linglong::package::AppMetaInfoList pkgList;
+    QString arch = linglong::util::hostArch();
+    QString appData = "";
+    int status = STATUS_CODE(kFail);
+    if (!paramOption.force) {
+        status = linglong::util::queryLocalCache(appId, appData);
+    }
+    bool fromServer = false;
+    // 缓存查不到从服务器查
+    if (status != STATUS_CODE(kSuccess)) {
+        ret = getAppInfoFromServer(appId, "", arch, appData, reply.message);
+        if (!ret) {
+            reply.code = STATUS_CODE(kErrorPkgQueryFailed);
+            qCritical() << reply.message;
+            return reply;
+        }
+        fromServer = true;
+    }
+    QJsonValue jsonValue;
+    ret = getAppJsonArray(appData, jsonValue, reply.message);
+    if (!ret) {
+        reply.code = STATUS_CODE(kErrorPkgQueryFailed);
+        qCritical() << reply.message;
+        return reply;
+    }
+    // 若从服务器查询得到正确的数据则更新缓存
+    if (fromServer) {
+        linglong::util::updateCache(appId, appData);
+    }
+    QJsonDocument document = QJsonDocument(jsonValue.toArray());
+    reply.code = STATUS_CODE(kErrorPkgQuerySuccess);
+    reply.message = "query " + appId + " success";
+    reply.result = QString(document.toJson());
+    return reply;
 }
 
 PackageManager::PackageManager()
-    : pool(new QThreadPool)
-    , dd_ptr(new PackageManagerPrivate(this))
+    : dd_ptr(new PackageManagerPrivate(this))
 {
     // 检查安装数据库信息
     linglong::util::checkInstalledAppDb();
     linglong::util::updateInstalledAppInfoDb();
-    pool->setMaxThreadCount(POOL_MAX_THREAD);
     // 检查应用缓存信息
     linglong::util::checkAppCache();
 }
@@ -1501,6 +990,13 @@ PackageManager::~PackageManager()
 {
 }
 
+/**
+ * @brief 修改仓库url
+ * @param url 仓库url地址
+ * @return Reply dbus方法调用应答 \n
+ *         code:状态码 \n
+ *         message:信息
+ */
 Reply PackageManager::ModifyRepo(const QString &url)
 {
     Reply reply;
@@ -1527,9 +1023,9 @@ Reply PackageManager::ModifyRepo(const QString &url)
 
     // ostree config --repo=/persistent/linglong/repo set "remote \"repo\".url" https://repo-dev.linglong.space/repo/
     // ostree config 文件中节名有""，QSettings 会自动转义，不用 QSettings 直接修改 ostree config 文件
-    auto ret = linglong::runner::Runner(
-        "ostree", {"config", "--repo=" + d->kLocalRepoPath + "/repo", "set", "remote \"repo\".url", dstUrl},
-        1000 * 60 * 5);
+    auto ret = runner::Runner("ostree",
+                              {"config", "--repo=" + d->kLocalRepoPath + "/repo", "set", "remote \"repo\".url", dstUrl},
+                              1000 * 60 * 5);
     if (!ret) {
         reply.message = "modify repo url failed";
         qWarning() << reply.message;
@@ -1545,88 +1041,44 @@ Reply PackageManager::ModifyRepo(const QString &url)
     return reply;
 }
 
-/**
- * @brief 查询软件包下载安装状态
- *
- * @param paramOption 查询参数
- * @param type 查询类型 0:查询应用安装进度 1:查询应用更新进度
- *
- * @return Reply dbus方法调用应答 \n
- *          code:状态码 \n
- *          message:信息
- */
-Reply PackageManager::GetDownloadStatus(const ParamOption &paramOption, int type)
-{
-    Q_D(PackageManager);
-    Reply reply;
-    QString appId = paramOption.appId.trimmed();
-    if (appId.isEmpty()) {
-        qCritical() << "package name err";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        reply.message = "package name err";
-        return reply;
-    }
-
-    QString arch = paramOption.arch.trimmed().toLower();
-    if (!arch.isEmpty() && arch != linglong::util::hostArch()) {
-        reply.message = "app arch:" + arch + " not support in host";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        return reply;
-    }
-    return d->GetDownloadStatus(paramOption, type);
-}
-
 QString PackageManager::Install(const QString &ref, const QVariantMap &options)
 {
     Q_D(PackageManager);
-
-    auto *conn = new QDBusConnection(connection());
 
     auto job = JobManager::instance()->createJob(
         [=](util::Job *job) {
             qDebug() << "install job start";
             d->install(package::Ref(ref), job);
         },
-        conn);
+        *this);
 
     return job->path();
 }
 
-Reply PackageManager::Uninstall(const UninstallParamOption &paramOption)
+QString PackageManager::Update(const QString &ref, const QVariantMap &options)
 {
     Q_D(PackageManager);
-    Reply reply;
-    QString appId = paramOption.appId.trimmed();
+    auto job = JobManager::instance()->createJob(
+        [=](util::Job *job) {
+            qDebug() << "install job start";
+            d->update(package::Ref(ref), job);
+        },
+        *this);
 
-    if (appId.isEmpty()) {
-        reply.message = "appId input err";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        return reply;
-    }
-
-    if ("flatpak" == paramOption.repoPoint) {
-        return PACKAGEMANAGER_FLATPAK_IMPL->Uninstall(paramOption);
-    }
-    // QFuture<void> future = QtConcurrent::run(pool.data(), [=]() { d->Uninstall(paramOption); });
-    return d->Uninstall(paramOption);
+    return job->path();
 }
 
-Reply PackageManager::Update(const ParamOption &paramOption)
+QString PackageManager::Uninstall(const QString &ref, const QVariantMap &options)
 {
     Q_D(PackageManager);
 
-    Reply reply;
-    QString appId = paramOption.appId.trimmed();
-    if (appId.isEmpty()) {
-        reply.message = "appId input err";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        return reply;
+    auto err = d->uninstall(getDBusCallerUid(*this), package::Ref(ref), options);
+
+    if (!err.success()) {
+        sendErrorReply(dbusErrorName(DBusErrorType::PackageNotInstalled), err.message());
     }
 
-    QFuture<void> future = QtConcurrent::run(pool.data(), [=]() { d->Update(paramOption); });
-    reply.code = STATUS_CODE(kPkgUpdating);
-    reply.message = appId + " is updating";
-    return reply;
+    return "";
 }
 
 QueryReply PackageManager::Query(const QueryParamOption &paramOption)
@@ -1644,13 +1096,6 @@ QueryReply PackageManager::Query(const QueryParamOption &paramOption)
         return reply;
     }
     return d->Query(paramOption);
-}
-
-void PackageManager::setNoDBusMode(bool enable)
-{
-    Q_D(PackageManager);
-    d->noDBusMode = true;
-    qInfo() << "setNoDBusMode enable:" << enable;
 }
 
 QVariantMap PackageManager::Show(const QString &ref, const QVariantMap &options)
@@ -1677,25 +1122,6 @@ QVariantMapList PackageManager::List(const QVariantMap &options)
         packages.push_back(package.toMap());
     }
     return packages;
-}
-
-Reply PackageManager::InstallNoDbus(const InstallParamOption &installParamOption)
-{
-    Q_D(PackageManager);
-    Reply reply;
-    QString appId = installParamOption.appId.trimmed();
-    if (appId.isEmpty()) {
-        reply.message = "appId input err";
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        return reply;
-    }
-    if ("flatpak" == installParamOption.repoPoint) {
-        return PACKAGEMANAGER_FLATPAK_IMPL->Install(installParamOption);
-    }
-    QFuture<void> future = QtConcurrent::run(pool.data(), [=]() { d->Install(installParamOption); });
-    reply.code = STATUS_CODE(kPkgInstalling);
-    reply.message = installParamOption.appId + " is installing";
-    return reply;
 }
 
 } // namespace package_manager

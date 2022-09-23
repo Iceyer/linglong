@@ -51,10 +51,11 @@ set(LL_SYSTEM_SERVICE_SOURCES
     impl/app_status.cpp
     impl/appinfo_cache.cpp
     impl/job_manager.cpp
+    impl/package_database.cpp
+    impl/package_database.h
     impl/package_manager.cpp
     impl/package_manager_flatpak_impl.cpp
-    main.cpp
-)
+    main.cpp)
 
 qt5_add_dbus_adaptor(
   LL_SYSTEM_SERVICE_SOURCES

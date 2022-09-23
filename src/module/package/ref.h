@@ -53,13 +53,20 @@ public:
     }
 
     /*!
-     * toOSTreeRef return
+     * toOSTreeRefString return
      * {repo}:/{channel}/{id}/{version}/{arch}/{module}
      * or
      * {channel}/{id}/{version}/{arch}/{module}
      * @return
      */
     QString toOSTreeRefString() const;
+
+    /*!
+     * toOSTreeRefLocalString return
+     * {channel}/{id}/{version}/{arch}/{module}
+     * @return
+     */
+    QString toOSTreeRefLocalString() const;
 
     /*!
      * toSpecString return {repo}/{channel}:{id}/{version}/{arch}/{module}

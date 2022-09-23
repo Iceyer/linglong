@@ -16,6 +16,7 @@
 #include "dbus_gen_app_manager_interface.h"
 #include "dbus_gen_job_interface.h"
 #include "dbus_gen_package_manager_interface.h"
+
 #include "module/package/package.h"
 #include "module/util/job/job_controller.h"
 #include "module/util/package_manager_param.h"
@@ -26,18 +27,12 @@
 #include "module/util/env.h"
 #include "module/util/log_handler.h"
 #include "module/util/sysinfo.h"
-#include "package_manager/impl/package_manager.h"
-#include "package_manager/impl/app_status.h"
 #include "service/impl/register_meta_type.h"
 #include "service/impl/app_manager.h"
 
 #include "cmd/command_helper.h"
 #include "cli.h"
 
-/**
- * @brief 注册 QT 对象类型
- *
- */
 static void qSerializeRegisterAll()
 {
     linglong::package::registerAllMetaType();
@@ -178,7 +173,8 @@ void checkAndStartService(OrgDeepinLinglongAppManagerInterface &packageManager)
     }
 }
 
-void addRefArguments(QCommandLineParser &parser, QList<QCommandLineOption> opts)
+linglong::package::Ref parseRefArguments(QCommandLineParser &parser, QList<QCommandLineOption> opts,
+                                         std::function<void(linglong::package::Ref &)> overrideRef)
 {
     parser.addPositionalArgument("ref",
                                  R"MLS00(The full ref is:
@@ -194,6 +190,22 @@ only package id required，use this for short:
     for (auto opt : opts) {
         parser.addOption(opt);
     }
+
+    parser.process(*qApp);
+
+    auto args = parser.positionalArguments();
+
+    if (args.size() != 2) {
+        parser.showHelp(-1);
+    }
+
+    auto argRef = args.at(1);
+
+    linglong::package::Ref ref(argRef);
+
+    overrideRef(ref);
+
+    return ref;
 }
 
 static qint64 appManagerPID = -1;
@@ -310,6 +322,28 @@ int main(int argc, char **argv)
     // some common option
     auto optChannel = QCommandLineOption("channel", "The channel of package", kDefaultChannel, kDefaultChannel);
     auto optModule = QCommandLineOption("module", "The module of package", kDefaultModule, kDefaultModule);
+
+    auto overrideRefArguments = [&](linglong::package::Ref &ref) {
+        if (parser.isSet(optChannel)) {
+            ref.channel = parser.value(optChannel);
+        }
+        if (parser.isSet(optModule)) {
+            ref.module = parser.value(optModule);
+        }
+    };
+
+    QScopedPointer<linglong::cli::Cli> cli(new linglong::cli::Cli);
+
+    auto runPackageManagerJob = [&](std::function<QDBusPendingReply<QString>()> funcCreateJob) -> int {
+        auto ret = cli->runJob(
+            funcCreateJob,
+            [&](const QString &path) -> QDBusInterface * {
+                return new QDBusInterface(DBusPackageManagerServiceName, path, DBusPackageManagerJobInterface,
+                                          packageManagerDBusConnection, nullptr);
+            },
+            !parser.isSet(optNoDbus));
+        return ret;
+    };
 
     QMap<QString, std::function<int(QCommandLineParser & parser)>> subcommandMap = {
         {"run", // 启动玲珑应用
@@ -512,7 +546,7 @@ int main(int argc, char **argv)
              parser.process(app);
 
              auto outputFormat = parser.value(optOutputFormat);
-             auto replyString = appManager.ListContainer().value().result;
+             auto replyString = appManager.List().value().result;
 
              ContainerList containerList;
              auto doc = QJsonDocument::fromJson(replyString.toUtf8(), nullptr);
@@ -556,160 +590,27 @@ int main(int argc, char **argv)
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
              parser.addPositionalArgument("install", "Install a package", "install");
-             addRefArguments(parser, {optChannel, optModule});
-             parser.process(app);
+             package::Ref ref = parseRefArguments(parser, {optChannel, optModule}, overrideRefArguments);
 
-             args = parser.positionalArguments();
-             auto repoType = parser.value(optRepoPoint);
-
-             // 参数个数校验
-             if (args.size() != 2 || (!repoType.isEmpty() && "flatpak" != repoType)) {
-                 parser.showHelp(-1);
-                 return -1;
-             }
-
-             // 收到中断信号后恢复操作
-             signal(SIGINT, doIntOperate);
-
-             auto argRef = args.at(1);
-             package::Ref ref(argRef);
-
-             if (parser.isSet(optChannel)) {
-                 ref.channel = parser.value(optChannel);
-             }
-             if (parser.isSet(optModule)) {
-                 ref.module = parser.value(optModule);
-             }
-
-             qInfo().noquote() << "install" << argRef << ", please wait a few minutes...";
-
-             // if (parser.isSet(optNoDbus)) {
-             // linglong::service::Reply reply;
-             // // appId format: org.deepin.calculator/1.2.6 in multi-version
-             // linglong::service::InstallParamOption installParamOption;
-             // installParamOption.repoPoint = repoType;
-             // // 增加 channel/module
-             // installParamOption.channel = parser.value(optChannel);
-             // installParamOption.appModule = parser.value(optModule);
-             // QStringList appInfoList = args.at(1).split("/");
-             // installParamOption.appId = appInfoList.at(0);
-             // installParamOption.arch = linglong::util::hostArch();
-             // if (appInfoList.size() == 2) {
-             // installParamOption.version = appInfoList.at(1);
-             // } else if (appInfoList.size() == 3) {
-             // installParamOption.version = appInfoList.at(1);
-             // installParamOption.arch = appInfoList.at(2);
-             // }
-             // SYSTEM_MANAGER_HELPER->setNoDBusMode(true);
-             // reply = SYSTEM_MANAGER_HELPER->InstallNoDbus(installParamOption);
-             // SYSTEM_MANAGER_HELPER->pool->waitForDone(-1);
-             // qInfo().noquote() << "install " << installParamOption.appId << " done";
-             // } else {
-             qDebug() << "install spec ref" << ref.toSpecString();
-
-             QDBusPendingReply<QString> dbusReply = packageManager.Install(ref.toSpecString(), {});
-             dbusReply.waitForFinished();
-             QString jobPath = dbusReply.value();
-
-             QScopedPointer<linglong::cli::Cli> cli(new linglong::cli::Cli);
-             QScopedPointer<QDBusInterface> jobInterface(new QDBusInterface(DBusPackageManagerServiceName, jobPath,
-                                                                            DBusPackageManagerJobInterface,
-                                                                            packageManagerDBusConnection, nullptr));
-             if (!parser.isSet(optNoDbus)) {
-                 QObject::connect(jobInterface.data(),
-                                  SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)), cli.data(),
-                                  SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
-                 QObject::connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), cli.data(),
-                                  SLOT(onFinish(quint32, QString)));
-                 return app.exec();
-             } else {
-                 while (jobInterface.data()->property("State").toUInt()
-                        == static_cast<quint32>(linglong::util::JobStateFinish)) {
-                     QThread::sleep(1);
-                 }
-                 auto statusCode = jobInterface.data()->property("StatusCode").toUInt();
-                 return statusCode;
-             }
+             qInfo().noquote() << "install" << ref.toSpecString() << ", please wait a few minutes...";
+             return runPackageManagerJob(
+                 [&]() -> QDBusPendingReply<QString> { return packageManager.Install(ref.toSpecString(), {}); });
          }},
         {"update", // 更新玲珑包
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
-             parser.addPositionalArgument("update", "Update an application", "update");
-             addRefArguments(parser, {optChannel, optModule});
-
-             parser.process(app);
-             linglong::service::ParamOption paramOption;
-             args = parser.positionalArguments();
-             QStringList appInfoList = args.value(1).split("/");
-             if (args.size() != 2) {
-                 parser.showHelp(-1);
-                 return -1;
-             }
-             paramOption.appId = appInfoList.at(0).trimmed();
-             if (paramOption.appId.isEmpty()) {
-                 parser.showHelp(-1);
-                 return -1;
-             }
-             paramOption.arch = linglong::util::hostArch();
-             if (appInfoList.size() > 1) {
-                 paramOption.version = appInfoList.at(1);
-             }
-             // 增加 channel/module
-             paramOption.channel = parser.value(optChannel);
-             paramOption.appModule = parser.value(optModule);
-             packageManager.setTimeout(1000 * 60 * 60 * 24);
-             qInfo().noquote() << "update" << paramOption.appId << ", please wait a few minutes...";
-             QDBusPendingReply<linglong::service::Reply> dbusReply = packageManager.Update(paramOption);
-             dbusReply.waitForFinished();
-             linglong::service::Reply reply;
-             reply = dbusReply.value();
-             if (reply.code == STATUS_CODE(kPkgUpdating)) {
-                 signal(SIGINT, doIntOperate);
-                 QThread::sleep(1);
-                 dbusReply = packageManager.GetDownloadStatus(paramOption, 1);
-                 dbusReply.waitForFinished();
-                 reply = dbusReply.value();
-                 bool disProgress = false;
-                 // 隐藏光标
-                 std::cout << "\033[?25l";
-                 while (reply.code == STATUS_CODE(kPkgUpdating)) {
-                     std::cout << "\r\33[K" << reply.message.toStdString();
-                     std::cout.flush();
-                     QThread::sleep(1);
-                     dbusReply = packageManager.GetDownloadStatus(paramOption, 1);
-                     dbusReply.waitForFinished();
-                     reply = dbusReply.value();
-                     disProgress = true;
-                 }
-                 // 显示光标
-                 std::cout << "\033[?25h";
-                 if (disProgress) {
-                     std::cout << std::endl;
-                 }
-             }
-             if (reply.code != STATUS_CODE(kErrorPkgUpdateSuccess)) {
-                 qCritical().noquote() << "message:" << reply.message << ", errcode:" << reply.code;
-                 return -1;
-             }
-             qInfo().noquote() << "message:" << reply.message;
-             return 0;
+             parser.addPositionalArgument("update", "update a package", "update");
+             package::Ref ref = parseRefArguments(parser, {optChannel, optModule}, overrideRefArguments);
+             qInfo().noquote() << "update" << ref.toSpecString() << ", please wait a few minutes...";
+             return runPackageManagerJob(
+                 [&]() -> QDBusPendingReply<QString> { return packageManager.Update(ref.toSpecString(), {}); });
          }},
         {"query", // 查询玲珑包
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
              parser.addPositionalArgument("query", "Query app info", "query");
-             addRefArguments(parser, {});
-
              auto optNoCache = QCommandLineOption("force", "Query from server directly, not from cache", "");
-             parser.addOption(optNoCache);
-             parser.process(app);
-
-             args = parser.positionalArguments();
-             auto repoType = parser.value(optRepoPoint);
-             if (args.size() != 2 || (!repoType.isEmpty() && "flatpak" != repoType)) {
-                 parser.showHelp(-1);
-                 return -1;
-             }
+             package::Ref ref = parseRefArguments(parser, {optNoCache}, [](package::Ref &) {});
 
              linglong::service::QueryParamOption paramOption;
              paramOption.appId = args.value(1).trimmed();
@@ -718,7 +619,6 @@ int main(int argc, char **argv)
                  return -1;
              }
              paramOption.force = parser.isSet(optNoCache);
-             paramOption.repoPoint = repoType;
              paramOption.appId = args.value(1);
 
              QDBusPendingReply<linglong::service::QueryReply> dbusReply = packageManager.Query(paramOption);
@@ -737,53 +637,25 @@ int main(int argc, char **argv)
         {"uninstall", // 卸载玲珑包
          [&](QCommandLineParser &parser) -> int {
              parser.clearPositionalArguments();
-             parser.addPositionalArgument("uninstall", "uninstall an application", "uninstall");
-             addRefArguments(parser, {optChannel, optModule});
+             parser.addPositionalArgument("uninstall", "uninstall a package", "uninstall");
+             auto optAllVer = QCommandLineOption("all-version", "uninstall all version package", "");
+             auto optDelData = QCommandLineOption("delete-data", "delete application data", "");
 
-             auto optAllVer = QCommandLineOption("all-version", "uninstall all version application", "");
-             parser.addOption(optAllVer);
-
-             auto optDelData = QCommandLineOption("delete-data", "delete app data", "");
-             parser.addOption(optDelData);
-
-             parser.process(app);
-
-             args = parser.positionalArguments();
-             auto repoType = parser.value(optRepoPoint);
-             if (args.size() != 2 || (!repoType.isEmpty() && "flatpak" != repoType)) {
-                 parser.showHelp(-1);
-                 return -1;
-             }
-
-             auto appInfo = args.value(1);
-             packageManager.setTimeout(1000 * 60 * 60 * 24);
-             QDBusPendingReply<linglong::service::Reply> dbusReply;
-             linglong::service::UninstallParamOption paramOption;
-             // appId format: org.deepin.calculator/1.2.6 in multi-version
-             QStringList appInfoList = appInfo.split("/");
-             paramOption.appId = appInfo;
-             if (appInfoList.size() > 1) {
-                 paramOption.appId = appInfoList.at(0);
-                 paramOption.version = appInfoList.at(1);
-             }
-
-             paramOption.channel = parser.value(optChannel);
-             paramOption.appModule = parser.value(optModule);
-             paramOption.delAppData = parser.isSet(optDelData);
-             paramOption.repoPoint = repoType;
-             linglong::service::Reply reply;
-             qInfo().noquote() << "uninstall" << appInfo << ", please wait a few minutes...";
-             paramOption.delAllVersion = parser.isSet(optAllVer);
-             dbusReply = packageManager.Uninstall(paramOption);
-             dbusReply.waitForFinished();
-             reply = dbusReply.value();
-
-             if (reply.code != STATUS_CODE(kPkgUninstallSuccess)) {
-                 qCritical().noquote() << "message:" << reply.message << ", errcode:" << reply.code;
-                 return -1;
-             }
-             qInfo().noquote() << "message:" << reply.message;
-             return 0;
+             package::Ref ref = parseRefArguments(parser,
+                                                  {
+                                                      optChannel,
+                                                      optModule,
+                                                      optAllVer,
+                                                      optDelData,
+                                                  },
+                                                  overrideRefArguments);
+             QVariantMap options = {
+                 {"kDeleteAllVersion", parser.isSet(optAllVer)},
+                 {"kDeleteUserData", parser.isSet(optDelData)},
+             };
+             qInfo().noquote() << "uninstall" << ref.toSpecString() << ", please wait a few minutes...";
+             return runPackageManagerJob(
+                 [&]() -> QDBusPendingReply<QString> { return packageManager.Uninstall(ref.toSpecString(), {}); });
          }},
         {"list", // 查询已安装玲珑包
          [&](QCommandLineParser &parser) -> int {

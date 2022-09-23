@@ -16,6 +16,7 @@
 #include "module/util/package_manager_param.h"
 #include "module/util/sysinfo.h"
 #include "dbus_gen_system_helper_interface.h"
+#include "package_database.h"
 
 namespace linglong {
 namespace package_manager {
@@ -28,6 +29,11 @@ public:
     explicit PackageManagerPrivate(PackageManager *parent);
     ~PackageManagerPrivate() override = default;
 
+public:
+    util::Error install(const package::Ref &ref, util::Job *job);
+    util::Error update(const package::Ref &ref, util::Job *job);
+    util::Error uninstall(uid_t uid, const package::Ref &ref, const QVariantMap &options);
+
     bool isUserAppInstalled(const QString &userName, const package::Ref &ref);
     bool isUserRuntimeInstalled(const QString &userName, const package::Ref &ref);
     bool isUserBaseInstalled(const QString &userName, const package::Ref &ref);
@@ -36,28 +42,12 @@ public:
 
     package::Ref getRuntimeBaseRef(const package::Ref &ref);
 
+    QList<package::Ref> findRefsToUninstall(const package::Ref &ref, bool deleteAllVersion);
+
     util::Error exportFiles(const package::Ref &ref);
+    util::Error prunePackageFiles(const package::Ref &ref);
 
-private:
-    util::Error install(const package::Ref &ref, util::Job *job);
-
-    Reply Install(const InstallParamOption &installParamOption);
-    Reply Uninstall(const UninstallParamOption &paramOption);
     QueryReply Query(const QueryParamOption &paramOption);
-    Reply Update(const ParamOption &paramOption);
-
-    /**
-     * @brief 查询软件包下载安装状态
-     *
-     * @param paramOption 查询参数
-     * @param type 查询类型 0:查询应用安装进度 1:查询应用更新进度
-     *
-     * @return Reply dbus方法调用应答 \n
-     *          code:状态码 \n
-     *          message:信息
-     */
-    Reply GetDownloadStatus(const ParamOption &paramOption, int type);
-
     /*
      * 从给定的软件包列表中查找最新版本的软件包
      *
@@ -103,7 +93,7 @@ private:
      *
      * @return bool: true:成功 false:失败
      */
-    bool getAppInfofromServer(const QString &pkgName, const QString &pkgVer, const QString &pkgArch, QString &appData,
+    bool getAppInfoFromServer(const QString &pkgName, const QString &pkgVer, const QString &pkgArch, QString &appData,
                               QString &err);
     /*
      * 将在线包数据部分签出到指定目录
@@ -186,20 +176,17 @@ private:
     QString getUserName(uid_t uid);
 
 private:
-    const QString sysLinglongInstalltions;
+    const QString entriesSharePath;
     const QString kAppInstallPath;
     const QString kLocalRepoPath;
     const QString kRemoteRepoName;
 
-    // 记录子线程安装及更新状态 供查询进度信息使用
-    QMap<QString, Reply> appState;
-    OrgDeepinLinglongSystemHelperInterface systemHelperInterface;
-
-    bool noDBusMode = false;
+    PackageDatabase pdb;
 
     repo::OSTreeRepo ostreeRepo;
     repo::RepoClient repoClient;
 
+    OrgDeepinLinglongSystemHelperInterface systemHelperInterface;
 public:
     PackageManager *const q_ptr;
     Q_DECLARE_PUBLIC(PackageManager);

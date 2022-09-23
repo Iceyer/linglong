@@ -27,6 +27,7 @@ class SystemHelper
 public:
     void RebuildInstallPortal(const QString &installPath, const QString &ref, const QVariantMap &options);
     void RuinInstallPortal(const QString &installPath, const QString &ref, const QVariantMap &options);
+    void DeletePackageUserData(quint64 uid, const QString &ref, const QVariantMap &options);
 };
 
 } // namespace helper

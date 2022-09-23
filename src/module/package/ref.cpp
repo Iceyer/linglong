@@ -88,6 +88,10 @@ Ref::Ref(const QString &ref)
 
 void Ref::autoFill()
 {
+    if (repo.isEmpty()) {
+        repo = kDefaultRepo;
+    }
+
     if (arch.isEmpty()) {
         arch = util::hostArch();
     }
@@ -104,7 +108,8 @@ void Ref::autoFill()
 QString Ref::toOSTreeRefString() const
 {
     auto fixModule = module;
-    fixModule = "runtime";
+    auto fixRepo = repo;
+    fixRepo = "repo";
 
     if (repo.isEmpty() && channel.isEmpty()) {
         // {id}/{version}/{arch}/{module}
@@ -117,7 +122,13 @@ QString Ref::toOSTreeRefString() const
     }
 
     // {repo}:/{channel}/{id}/{version}/{arch}/{module}
-    return QString("%1:%2/%3/%4/%5/%6").arg(repo, channel, appId, version, arch, fixModule);
+    return QString("%1:%2/%3/%4/%5/%6").arg(fixRepo, channel, appId, version, arch, fixModule);
+}
+
+QString Ref::toOSTreeRefLocalString() const
+{
+    auto fixModule = module;
+    return QString("%1/%2/%3/%4/%5").arg(channel, appId, version, arch, fixModule);
 }
 
 } // namespace package

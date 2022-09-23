@@ -20,6 +20,9 @@ const auto kDefaultChannel = "linglong";
 const auto kDefaultVersion = "latest";
 // const auto kDefaultModule = "binary";
 const auto kDefaultModule = "runtime";
+
+const auto kMainModule = kDefaultModule;
+
 } // namespace linglong
 
 #endif // LINGLONG_SRC_MODULE_UTIL_CONST_H_

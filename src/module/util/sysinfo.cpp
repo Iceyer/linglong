@@ -31,6 +31,26 @@ QString hostArch()
     return arch;
 }
 
+QString getUserName(uid_t uid)
+{
+    struct passwd *user = getpwuid(uid);
+    if (user) {
+        return QString::fromUtf8(user->pw_name);
+    }
+    qCritical() << "getUserName err";
+    return "";
+}
+
+QString getUserHomePath(uid_t uid)
+{
+    struct passwd *user = getpwuid(uid);
+    if (user) {
+        return QString::fromUtf8(user->pw_dir);
+    }
+    qCritical() << "getUserHomePath filed";
+    return "";
+}
+
 /*
  * 查询当前登陆用户名
  *
@@ -38,15 +58,7 @@ QString hostArch()
  */
 QString getUserName()
 {
-    uid_t uid = geteuid();
-    struct passwd *user = getpwuid(uid);
-    QString userName = "";
-    if (user && user->pw_name) {
-        userName = QString(QLatin1String(user->pw_name));
-    } else {
-        qCritical() << "getUserName err";
-    }
-    return userName;
+    return getUserName(geteuid());
 }
 } // namespace util
 } // namespace linglong

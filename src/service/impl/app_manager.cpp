@@ -245,7 +245,7 @@ Reply AppManager::Stop(const QString &containerId)
     return reply;
 }
 
-QueryReply AppManager::ListContainer()
+QueryReply AppManager::List()
 {
     Q_D(AppManager);
     QJsonArray jsonArray;

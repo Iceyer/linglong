@@ -8,13 +8,22 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+#include <QDir>
 #include "system_helper.h"
 
 #include "privilege/privilege_install_portal.h"
+#include "module/util/sysinfo.h"
+#include "module/package/ref.h"
+#include "module/util/file.h"
 
 namespace linglong {
 namespace system {
 namespace helper {
+
+QString getUserPackageDataPath(uid_t uid, const QString &id)
+{
+    return QStringList {util::getUserHomePath(uid), ".linglong", id}.join(QDir::separator());
+}
 
 /*!
  * RebuildInstallPortal update package file need portal to host when package install
@@ -43,6 +52,11 @@ void SystemHelper::RuinInstallPortal(const QString &installPath, const QString &
     if (!err.success()) {
         sendErrorReply(static_cast<QDBusError::ErrorType>(err.code()), err.message());
     }
+}
+
+void SystemHelper::DeletePackageUserData(quint64 uid, const QString &ref, const QVariantMap &options)
+{
+    util::removeDir(getUserPackageDataPath(uid, package::Ref(ref).appId));
 }
 
 } // namespace helper

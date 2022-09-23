@@ -42,38 +42,38 @@ public:
     explicit OSTreeRepo(const QString &localRepoPath, const QString &remoteEndpoint, const QString &remoteRepoName);
     ~OSTreeRepo() override;
 
-    linglong::util::Error init(const QString &repoMode);
+    util::Error init(const QString &repoMode);
 
-    linglong::util::Error remoteAdd(const QString &repoName, const QString &repoUrl);
+    util::Error remoteAdd(const QString &repoName, const QString &repoUrl);
 
-    std::tuple<linglong::util::Error, QStringList> remoteList();
+    std::tuple<util::Error, QStringList> remoteList();
 
-    linglong::util::Error importDirectory(const package::Ref &ref, const QString &path) override;
+    util::Error importDirectory(const package::Ref &ref, const QString &path) override;
 
-    linglong::util::Error import(const package::Bundle &bundle) override;
+    util::Error import(const package::Bundle &bundle) override;
 
-    linglong::util::Error exportBundle(package::Bundle &bundle) override;
+    util::Error exportBundle(package::Bundle &bundle) override;
 
-    std::tuple<linglong::util::Error, QList<package::Ref>> list(const QString &filter) override;
+    std::tuple<util::Error, QList<package::Ref>> list(const QString &filter) override;
 
-    std::tuple<linglong::util::Error, QList<package::Ref>> query(const QString &filter) override;
+    std::tuple<util::Error, QList<package::Ref>> query(const QString &filter) override;
 
-    linglong::util::Error push(const package::Ref &ref, bool force) override;
+    util::Error push(const package::Ref &ref, bool force) override;
 
-    linglong::util::Error push(const package::Bundle &bundle, bool force) override;
+    util::Error push(const package::Bundle &bundle, bool force) override;
 
-    linglong::util::Error pull(const package::Ref &ref, bool force) override;
+    util::Error pull(const package::Ref &ref, bool force) override;
 
-    linglong::util::Error pull(const package::Ref &ref, QObject *controller = nullptr);
+    util::Error pull(const package::Ref &ref, QObject *controller = nullptr);
 
-    linglong::util::Error pullAll(const package::Ref &ref, bool force);
+    util::Error pullAll(const package::Ref &ref, bool force);
 
-    linglong::util::Error checkout(const package::Ref &ref, const QString &subPath, const QString &target,
-                                   const QStringList &args = {});
+    util::Error checkout(const package::Ref &ref, const QString &subPath, const QString &target,
+                         const QStringList &args = {});
 
-    linglong::util::Error removeRef(const package::Ref &ref);
+    util::Error remove(const package::Ref &ref);
 
-    linglong::util::Error checkoutAll(const package::Ref &ref, const QString &subPath, const QString &target);
+    util::Error checkoutAll(const package::Ref &ref, const QString &subPath, const QString &target);
 
     QString rootOfLayer(const package::Ref &ref) override;
 

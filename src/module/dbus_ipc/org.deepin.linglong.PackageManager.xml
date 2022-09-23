@@ -2,30 +2,23 @@
         "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
 <node>
     <interface name="org.deepin.linglong.PackageManager">
-        <method name="GetDownloadStatus">
-            <arg name="paramOption" type="(sssss)" direction="in"/>
-            <arg name="type" type="i" direction="in"/>
-            <arg name="reply" type="(is)" direction="out"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="linglong::service::ParamOption"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="linglong::service::Reply"/>
-        </method>
         <method name="Install">
             <arg name="ref" type="s" direction="in"/>
             <arg name="options" type="a{sv}" direction="in"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
             <arg name="jobPath" type="s" direction="out"/>
         </method>
-        <method name="Uninstall">
-            <arg name="paramOption" type="(ssssssbb)" direction="in"/>
-            <arg name="reply" type="(is)" direction="out"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="linglong::service::UninstallParamOption"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="linglong::service::Reply"/>
-        </method>
         <method name="Update">
-            <arg name="paramOption" type="(sssss)" direction="in"/>
-            <arg name="reply" type="(is)" direction="out"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="linglong::service::ParamOption"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="linglong::service::Reply"/>
+            <arg name="ref" type="s" direction="in"/>
+            <arg name="options" type="a{sv}" direction="in"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
+            <arg name="jobPath" type="s" direction="out"/>
+        </method>
+        <method name="Uninstall">
+            <arg name="ref" type="s" direction="in"/>
+            <arg name="options" type="a{sv}" direction="in"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
+            <arg name="jobPath" type="s" direction="out"/>
         </method>
         <method name="Show">
             <arg name="ref" type="s" direction="in"/>

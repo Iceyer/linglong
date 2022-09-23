@@ -12,7 +12,13 @@
 
 namespace linglong {
 namespace util {
+
 enum class StatusCode {
+    Success = 0,
+
+    __PackageManagerBegin = 100,
+    PackageNotInstalled,
+
     kSuccess = 0, ///< 成功
     kFail = 1, ///< 失败
     /// ll-builder模块状态码范围为100~299
@@ -44,12 +50,12 @@ enum class StatusCode {
 };
 
 template<typename T = int>
-inline T statuCode(StatusCode statuCode)
+inline T statusCode(StatusCode statusCode)
 {
-    return static_cast<T>(statuCode);
+    return static_cast<T>(statusCode);
 }
 
 } // namespace util
 } // namespace linglong
 
-#define STATUS_CODE(code) linglong::util::statuCode<int>(linglong::util::StatusCode::code)
+#define STATUS_CODE(code) linglong::util::statusCode<int>(linglong::util::StatusCode::code)

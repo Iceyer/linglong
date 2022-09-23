@@ -32,10 +32,7 @@ set(LL_CLI_SOURCES
     ../module/util/uuid.cpp
     ../module/util/xdg.cpp
     ../package_manager/impl/app_status.cpp
-    ../package_manager/impl/appinfo_cache.cpp
     ../package_manager/impl/job_manager.cpp
-    ../package_manager/impl/package_manager.cpp
-    ../package_manager/impl/package_manager_flatpak_impl.cpp
     ../service/impl/app_manager.cpp
     ../service/impl/param_option.h
     ../service/impl/reply.h
@@ -44,7 +41,7 @@ set(LL_CLI_SOURCES
     cli.h
     cmd/command_helper.cpp
     main.cpp
-)
+    )
 
 set_source_files_properties(
   ../module/dbus_ipc/org.deepin.linglong.AppManager.xml

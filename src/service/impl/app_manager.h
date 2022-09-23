@@ -84,7 +84,7 @@ public Q_SLOTS:
      *         packageName 应用名称 \n
      *         workingDirectory 应用运行目录
      */
-    QueryReply ListContainer();
+    QueryReply List();
 
     /**
      * @brief 执行终端命令

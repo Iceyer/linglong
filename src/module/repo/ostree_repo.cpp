@@ -222,6 +222,8 @@ static void progressCallback(OstreeAsyncProgress *progress, gpointer /*user_data
 namespace linglong {
 namespace repo {
 
+const auto kModuleParentName = "modules";
+
 struct OstreeRepoObject {
     QString objectName;
     QString rev;
@@ -434,10 +436,10 @@ private:
     }
 
     //! pull file in a new GMainContext
-    //! \param ref is an ostree ref without remote name, like: org.deepin.Runtime/1.1.1.3/x86_64
+    //! \param localRef is an ostree ref without remote name, like: org.deepin.Runtime/1.1.1.3/x86_64
     //! \return
     // TODO: should support multi refs?
-    util::Error pull(const QString &ref, QObject *controller = nullptr)
+    util::Error pull(const QString &repo, const QString &localRef, QObject *controller = nullptr)
     {
         util::Error error;
         GError *gErr = nullptr;
@@ -446,11 +448,10 @@ private:
         GMainContext *main_context = g_main_context_new();
         g_main_context_push_thread_default(main_context);
 
-        // FIXME: remote name maybe not repo and there should support multiple remote
-        // FIXME: read from config
-        remoteRepoName = "repo";
-        auto repoNameStr = remoteRepoName.toStdString();
-        auto refStr = ref.toStdString();
+        auto repoNameStr = repo.toStdString();
+        // FIXME: should be repo from arg;
+        repoNameStr = "repo";
+        auto refStr = localRef.toStdString();
         auto refsSize = 1;
         const char *refs[refsSize + 1];
         for (decltype(refsSize) i = 0; i < refsSize; i++) {
@@ -466,7 +467,6 @@ private:
         //        g_variant_new_variant(g_variant_new_string(repoUrl)));
         //        g_variant_builder_add(&builder, "{s@v}", "override-remote-name",
         //                              g_variant_new_variant(g_variant_new_string("repo")));
-
         g_variant_builder_add(&builder, "{s@v}", "gpg-verify", g_variant_new_variant(g_variant_new_boolean(false)));
         g_variant_builder_add(&builder, "{s@v}", "gpg-verify-summary",
                               g_variant_new_variant(g_variant_new_boolean(false)));
@@ -498,13 +498,13 @@ private:
         g_object_set_data(G_OBJECT(progress), "cancellable", reinterpret_cast<gpointer>(cancellable));
         g_object_set_data(G_OBJECT(progress), "controller", reinterpret_cast<gpointer>(controller));
 
-        qDebug() << "pull from" << repoNameStr.c_str() << refs[0];
         // repo name must not be empty
         Q_ASSERT(!repoNameStr.empty());
         auto ostreeRepoPtr = openRepo(ostreePath);
+        qDebug() << "pull from" << repoNameStr.c_str() << refs[0];
         if (!ostree_repo_pull_with_options(ostreeRepoPtr, repoNameStr.c_str(), options, progress, cancellable, &gErr)) {
             QString errMsg = gErr ? QString(gErr->message) : "unknown error";
-            qCritical() << "ostree_repo_pull_with_options" << remoteRepoName << ref << " failed" << errMsg;
+            qCritical() << "ostree_repo_pull_with_options" << remoteRepoName << localRef << " failed" << errMsg;
             error = NewError(-1, errMsg);
         }
 
@@ -513,6 +513,52 @@ private:
         }
         if (main_context) {
             g_main_context_pop_thread_default(main_context);
+        }
+
+        return error;
+    }
+
+    util::Error errorFromGError(GError *gErr)
+    {
+        auto code = gErr ? gErr->code : -1;
+        QString errMsg = gErr ? QString(gErr->message) : "unknown error";
+        return NewError(code, errMsg);
+    }
+
+    util::Error remove(const QString &repoName, const QString &ref)
+    {
+        std::string repoNameStr = repoName.toStdString();
+        repoNameStr = "repo";
+        const std::string refStr = ref.toStdString();
+
+        util::Error error;
+        g_autoptr(OstreeRepo) repoPtr = nullptr;
+        g_autoptr(GCancellable) cancellable = nullptr;
+        g_autoptr(GError) gErr = nullptr;
+
+        repoPtr = openRepo(ostreePath);
+        if (!ostree_repo_set_ref_immediate(repoPtr, repoNameStr.c_str(), refStr.c_str(), nullptr, nullptr, &gErr)) {
+            error = errorFromGError(gErr);
+            qCritical() << "ostree_repo_set_ref_immediate" << repoPtr << repoNameStr.c_str() << ref << " failed"
+                        << error;
+            return error;
+        }
+
+        gint objectsTotal;
+        gint objectsPruned;
+        guint64 objectSizeTotal;
+        g_autofree char *formattedFreedSize = nullptr;
+
+        if (!ostree_repo_prune(repoPtr, OSTREE_REPO_PRUNE_FLAGS_REFS_ONLY, 0, &objectsTotal, &objectsPruned,
+                               &objectSizeTotal, cancellable, &gErr)) {
+            error = errorFromGError(gErr);
+            qCritical() << "ostree_repo_prune" << repoPtr << ref << " failed" << error;
+        }
+        formattedFreedSize = g_format_size_full(objectSizeTotal, (GFormatSizeFlags)0);
+        if (objectsPruned == 0) {
+            qInfo() << "prune No unreachable objects";
+        } else {
+            qInfo() << "prune " << objectsPruned << " objects," << formattedFreedSize << " freed";
         }
 
         return error;
@@ -706,8 +752,8 @@ linglong::util::Error OSTreeRepo::push(const package::Bundle &bundle, bool force
 linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
 {
     Q_D(OSTreeRepo);
-    auto refStr = ref.toString();
-    return WrapError(d->pull(refStr, {}));
+    auto refStr = ref.toOSTreeRefLocalString();
+    return WrapError(d->pull(ref.repo, refStr, nullptr));
 }
 
 /*!
@@ -719,8 +765,8 @@ linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
 linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, QObject *controller)
 {
     Q_D(OSTreeRepo);
-    auto refStr = ref.toOSTreeRefString();
-    return WrapError(d->pull(refStr, controller));
+    auto refStr = ref.toOSTreeRefLocalString();
+    return WrapError(d->pull(ref.repo, refStr, controller));
 }
 
 linglong::util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
@@ -771,6 +817,7 @@ linglong::util::Error OSTreeRepo::checkout(const package::Ref &ref, const QStrin
         args.push_back("--subpath=" + subPath);
     }
     args.append(extraArgs);
+    qDebug() << "checkout" << ref.repo << ref.toOSTreeRefString();
     args.append({ref.toOSTreeRefString(), targetPath});
 
     util::ensureParentDir(targetPath);
@@ -784,7 +831,6 @@ linglong::util::Error OSTreeRepo::checkoutAll(const package::Ref &ref, const QSt
 
     auto tmpRef = ref;
     QStringList runtimeArgs = {"checkout", "--union", tmpRef.toString(), target};
-    
     tmpRef.setModule("devel");
     QStringList develArgs = {"checkout", "--union", tmpRef.toString(), target};
 
@@ -806,7 +852,15 @@ linglong::util::Error OSTreeRepo::checkoutAll(const package::Ref &ref, const QSt
 
 QString OSTreeRepo::rootOfLayer(const package::Ref &ref)
 {
-    return QStringList {dd_ptr->repoRootPath, "layers", ref.appId, ref.version, ref.arch}.join(QDir::separator());
+    if (kMainModule == ref.module) {
+        // linglong/layers/org.deepin.demo/1.0.0.0/x86_64/  with files,modules,entries,info.json
+        return QStringList {dd_ptr->repoRootPath, "layers", ref.appId, ref.version, ref.arch}.join(QDir::separator());
+    } else {
+        // linglong/layers/org.deepin.demo/1.0.0.0/x86_64/modules/${module}
+        return QStringList {dd_ptr->repoRootPath, "layers",  ref.appId, ref.version, ref.arch,
+                            kModuleParentName,    ref.module}
+            .join(QDir::separator());
+    }
 }
 
 bool OSTreeRepo::isRefExists(const package::Ref &ref)
@@ -903,18 +957,6 @@ package::Ref OSTreeRepo::latestOfRef(const QString &appId, const QString &appVer
     return package::Ref(ref);
 }
 
-linglong::util::Error OSTreeRepo::removeRef(const package::Ref &ref)
-{
-    QStringList args = {"refs", "--delete", ref.toString()};
-    auto ret = dd_ptr->ostreeRun(args);
-    if (!ret.success()) {
-        return WrapError(ret, "delete refs failed");
-    }
-
-    args = QStringList {"prune"};
-    return WrapError(dd_ptr->ostreeRun(args));
-}
-
 std::tuple<linglong::util::Error, QStringList> OSTreeRepo::remoteList()
 {
     QStringList remoteList;
@@ -933,6 +975,24 @@ std::tuple<linglong::util::Error, QStringList> OSTreeRepo::remoteList()
 
     return {NoError(), remoteList};
 }
+
+util::Error OSTreeRepo::remove(const package::Ref &ref)
+{
+    auto err = dd_ptr->remove(ref.repo, ref.toOSTreeRefLocalString());
+
+    auto layerPath = rootOfLayer(ref);
+    if (ref.module == kMainModule) {
+        QDir layerDir(layerPath);
+        for (auto const &entry : layerDir.entryInfoList()) {
+            if (entry.isDir() && entry.fileName() == kModuleParentName)
+                util::removeDir(entry.absoluteFilePath());
+        }
+    } else {
+        util::removeDir(layerPath);
+    }
+    return NoError();
+}
+
 OSTreeRepo::~OSTreeRepo() = default;
 
 } // namespace repo

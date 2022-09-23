@@ -18,7 +18,6 @@
 #include "module/dbus_ipc/dbus_package_manager_common.h"
 #include "module/util/job/job.h"
 
-
 namespace linglong {
 namespace package_manager {
 
@@ -42,9 +41,12 @@ JobManager::JobManager()
 
 JobManager::~JobManager() = default;
 
-util::Job *JobManager::createJob(std::function<void(util::Job *)> f, QDBusConnection *conn)
+util::Job *JobManager::createJob(std::function<void(util::Job *)> f, QDBusContext &context)
 {
     Q_D(JobManager);
+
+    auto conn = new QDBusConnection(context.connection());
+
     auto jobId = QUuid::createUuid().toString(QUuid::Id128);
     auto jobPath = QLatin1String(linglong::DBusPackageManagerJobPath) + "/List/" + jobId;
     auto job = new util::Job(jobId, jobPath, f, this);
@@ -58,6 +60,7 @@ util::Job *JobManager::createJob(std::function<void(util::Job *)> f, QDBusConnec
             qDebug() << "conn name" << conn->name();
             conn->unregisterObject(job->path());
             d->jobs.remove(jobId);
+            delete conn;
         });
     });
 

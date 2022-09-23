@@ -71,7 +71,7 @@ bool OstreeRepoHelper::ensureRepoEnv(const QString &repoPath, QString &err)
     OstreeRepo *repo;
     g_autoptr(GFile) repodir = NULL;
     std::string tmpPath = "";
-    //适配目标路径末尾的‘/’，本地仓库目录名为repo
+    // 适配目标路径末尾的‘/’，本地仓库目录名为repo
     if (repoPathTmp.at(repoPathTmp.size() - 1) == '/') {
         tmpPath = repoPathTmp + "repo";
     } else {
@@ -666,7 +666,8 @@ bool OstreeRepoHelper::repoDeleteDatabyRef(const QString &repoPath, const QStrin
     GCancellable *cancellable = NULL;
     GError *error = NULL;
 
-    if (!ostree_repo_set_ref_immediate(pLingLongDir->repo, repoTmp.c_str(), refTmp.c_str(), NULL, cancellable, &error)) {
+    if (!ostree_repo_set_ref_immediate(pLingLongDir->repo, repoTmp.c_str(), refTmp.c_str(), NULL, cancellable,
+                                       &error)) {
         qCritical() << "repoDeleteDatabyRef error:" << error->message;
         err = "repoDeleteDatabyRef error:" + QString(QLatin1String(error->message));
         return false;

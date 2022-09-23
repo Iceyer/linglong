@@ -10,10 +10,13 @@
 
 #include "cli.h"
 
+#include <iostream>
+
 #include <QDebug>
 #include <QDateTime>
 #include <QCoreApplication>
-#include <iostream>
+
+#include "module/util/job/job_controller.h"
 
 namespace linglong {
 namespace cli {
@@ -52,7 +55,7 @@ void Cli::onJobProgressChanged(quint32 progress, quint64 rate, quint64 averageRa
     std::cout.flush();
 }
 
-void Cli::onFinish(quint32 , const QString &message)
+void Cli::onFinish(quint32, const QString &message)
 {
     QString output = QString("%1").arg(message);
     std::cout << std::endl;
@@ -61,6 +64,41 @@ void Cli::onFinish(quint32 , const QString &message)
     std::cout.flush();
     // FIXME: use signal to quit
     qApp->exit(0);
+}
+
+int Cli::runJob(std::function<QDBusPendingReply<QString>()> funcCreateJob,
+                std::function<QDBusInterface *(const QString &path)> funcCreateJobInterface, bool useSignal)
+{
+    auto dbusReply = funcCreateJob();
+    dbusReply.waitForFinished();
+    QString jobPath = dbusReply.value();
+
+    if (dbusReply.isError()) {
+        qDebug() << dbusReply.error().type() << dbusReply.error().name();
+
+        qCritical().noquote() << dbusReply.error().message();
+        return dbusReply.error().type();
+    }
+
+    // not an async task, just get result now
+    if (jobPath.isEmpty()) {
+        qDebug() << "no job path, job has finish";
+        return 0;
+    }
+
+    QScopedPointer<QDBusInterface> jobInterface(funcCreateJobInterface(jobPath));
+    if (useSignal) {
+        connect(jobInterface.data(), SIGNAL(ProgressChanged(quint32, quint64, quint64, qint64, QString)), this,
+                SLOT(onJobProgressChanged(quint32, quint64, quint64, qint64, QString)));
+        connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), this, SLOT(onFinish(quint32, QString)));
+        return qApp->exec();
+    } else {
+        while (jobInterface.data()->property("State").toUInt() != static_cast<quint32>(util::JobStateFinish)) {
+            QThread::sleep(1);
+        }
+        auto statusCode = jobInterface.data()->property("StatusCode").toUInt();
+        return statusCode;
+    }
 }
 
 } // namespace cli
