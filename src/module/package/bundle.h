@@ -28,7 +28,7 @@
 #include "module/util/result.h"
 #include "module/util/file.h"
 #include "module/util/status_code.h"
-#include "module/util/httpclient.h"
+#include "module/util/http/httpclient.h"
 #include "info.h"
 
 namespace linglong {
@@ -36,10 +36,8 @@ namespace package {
 
 class BundlePrivate;
 
-/*
- * Bundle
+/*!
  * Create Bundle format file, An Bundle contains loader, and it's squashfs.
- *
  */
 class Bundle : public QObject
 {
@@ -54,16 +52,14 @@ public:
      * @param path
      * @return
      */
-    linglong::util::Error load(const QString &path);
+    util::Error load(const QString &path);
 
     /**
      * Save Bundle to path, create parent if not exist
      * @param path
      * @return
      */
-    linglong::util::Error save(const QString &path);
-
-    // Info info() const;
+    util::Error save(const QString &path);
 
     /**
      * make Bundle
@@ -71,17 +67,16 @@ public:
      * @param outputFilePath : output file path
      * @return Result
      */
-    linglong::util::Error make(const QString &dataPath, const QString &outputFilePath);
+    util::Error make(const QString &dataPath, const QString &outputFilePath);
 
     /**
      * push Bundle
-     * @param uabFilePath: uab file path
-     * @param repoUrl: remote repo url
-     * @param force:  force to push
+     * @param uabFilePath uab file path
+     * @param repoUrl remote repo url
+     * @param force  force to push
      * @return Result
      */
-    linglong::util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel,
-                               bool force);
+    util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel, bool force);
 
 private:
     QScopedPointer<BundlePrivate> dd_ptr;

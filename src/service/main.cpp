@@ -15,7 +15,7 @@
 #include "module/dbus_ipc/dbus_app_manager_common.h"
 #include "module/runtime/app.h"
 #include "module/runtime/runtime.h"
-#include "module/util/log_handler.h"
+#include "module/util/log/log_handler.h"
 
 #include "impl/register_meta_type.h"
 

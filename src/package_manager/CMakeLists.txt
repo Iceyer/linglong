@@ -21,8 +21,6 @@ set(LL_SYSTEM_SERVICE_SOURCES
     ../module/package/package.h
     ../module/package/ref.cpp
     ../module/repo/ostree_repo.cpp
-    ../module/repo/ostree_repohelper.cpp
-    ../module/repo/ostree_repohelper.cpp
     ../module/repo/repo.cpp
     ../module/repo/repo_client.cpp
     ../module/repo/repo_client.h
@@ -37,12 +35,12 @@ set(LL_SYSTEM_SERVICE_SOURCES
     ../module/util/file.cpp
     ../module/util/http/http_client.cpp
     ../module/util/http/http_client.h
-    ../module/util/httpclient.cpp
+    ../module/util/http/httpclient.cpp
     ../module/util/job/job.cpp
     ../module/util/job/job.h
     ../module/util/job/job_controller.cpp
     ../module/util/job/job_controller.h
-    ../module/util/log_handler.cpp
+    ../module/util/log/log_handler.cpp
     ../module/util/serialize/serialize.h
     ../module/util/sysinfo.cpp
     ../module/util/uuid.cpp

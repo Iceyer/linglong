@@ -49,7 +49,6 @@ set(LL_TEST_SOURCES
     ../src/module/package/package.h
     ../src/module/package/ref.cpp
     ../src/module/package/ref.h
-    ../src/module/repo/ostree_repohelper.cpp
     ../src/module/repo/repo_client.cpp
     ../src/module/repo/repo_client.h
     ../src/module/runtime/container.cpp
@@ -64,7 +63,7 @@ set(LL_TEST_SOURCES
     ../src/module/util/file.cpp
     ../src/module/util/http/http_client.cpp
     ../src/module/util/http/http_client.h
-    ../src/module/util/httpclient.cpp
+    ../src/module/util/http/httpclient.cpp
     ../src/module/util/job/job_controller.cpp
     ../src/module/util/job/job_controller.h
     ../src/module/util/serialize/serialize.h
@@ -93,8 +92,7 @@ set(LL_TEST_SOURCES
     module/util/runner_test.cpp
     module/util/uuid_test.cpp
     module/util/xdg_test.cpp
-    repohelper_test.cpp
-)
+    )
 
 # add qdbus call
 set_source_files_properties(

@@ -44,23 +44,6 @@ typedef struct _downloadRet {
 class HttpClient : public linglong::util::Singleton<HttpClient>
 {
 private:
-
-    /*
-     * 获取文件锁
-     *
-     * @return int: 文件描述符
-     */
-    int getlock();
-
-    /*
-     * 释放文件锁
-     *
-     * @param fd: 文件描述符
-     *
-     * @return int: 0:成功 其它:失败
-     */
-    int releaselock(int fd);
-
     /*
      * 设置Http传输参数
      *
@@ -68,38 +51,11 @@ private:
      */
     void initHttpParam(const char *url);
 
-    /*
-     * 获取目标文件保存的全路径
-     *
-     * @param url: url地址
-     * @param savePath: 文件存储路径
-     * @param fullPath: 文件保存全路径
-     * @param maxSize: 路径长度阈值
-     */
-    void getFullPath(const char *url, const char *savePath, char *fullPath, int maxSize);
-
-    /*
-     * 校验Http传输参数
-     *
-     * @param url: url地址
-     * @param savePath: 文件保存地址
-     *
-     * @return bool: true:成功 false:失败
-     */
-    bool checkPara(const char *url, const char *savePath);
-
-    /*
-     * 显示结果信息
-     */
-    void showInfo();
-
-    bool isFinish;
     DOWNLOADCALLBACK progressFun;
     CURL *curlHandle;
     DownloadRet data;
 
 public:
-
     /*
      * 向服务器请求指定包名\版本\架构数据
      *
@@ -137,7 +93,7 @@ public:
      * 获取服务器token
      *
      * @param dnsOfLinglong: 玲珑仓库域名地址
-     * @param userInfo: 账户信息 
+     * @param userInfo: 账户信息
      *
      * @return QString: token数据
      */

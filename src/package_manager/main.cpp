@@ -11,7 +11,7 @@
 #include <QCoreApplication>
 
 #include "service/impl/register_meta_type.h"
-#include "module/util/log_handler.h"
+#include "module/util/log/log_handler.h"
 #include "module/repo/repo.h"
 #include "module/dbus_ipc/dbus_package_manager_common.h"
 

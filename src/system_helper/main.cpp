@@ -14,7 +14,7 @@
 
 #include "module/dbus_ipc/dbus_system_helper_common.h"
 #include "dbus_gen_system_helper_adaptor.h"
-#include "module/util/log_handler.h"
+#include "module/util/log/log_handler.h"
 
 #include "system_helper.h"
 #include "privilege/privilege_install_portal.h"

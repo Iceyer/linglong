@@ -25,7 +25,7 @@
 #include "module/runtime/runtime.h"
 #include "module/util/xdg.h"
 #include "module/util/env.h"
-#include "module/util/log_handler.h"
+#include "module/util/log/log_handler.h"
 #include "module/util/sysinfo.h"
 #include "service/impl/register_meta_type.h"
 #include "service/impl/app_manager.h"

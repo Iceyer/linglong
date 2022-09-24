@@ -47,8 +47,6 @@ const QString serverConfigPath = getLinglongRootPath() + "/config.json";
  */
 void HttpClient::initHttpParam(const char *url)
 {
-    isFinish = false;
-
     curl_global_init(CURL_GLOBAL_ALL);
     /* init the curl session */
     curlHandle = curl_easy_init();

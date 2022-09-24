@@ -8,7 +8,7 @@ set(LL_SYSTEM_HELPER_SOURCES
     ../module/util/config/config.cpp
     ../module/util/file.cpp
     ../module/util/file.h
-    ../module/util/log_handler.cpp
+    ../module/util/log/log_handler.cpp
     ../module/util/serialize/serialize.h
     ../module/util/sysinfo.cpp
     main.cpp

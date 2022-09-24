@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 
 #include <QtConcurrent/QtConcurrent>
-#include "src/module/util/httpclient.h"
+#include "module/util/http/httpclient.h"
 #include "src/module/util/file.h"
 #include "src/module/util/config/config.h"
 
