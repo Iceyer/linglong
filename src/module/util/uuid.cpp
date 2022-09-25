@@ -14,9 +14,11 @@
 
 namespace linglong {
 namespace util {
+
 QString genUuid()
 {
     return QUuid::createUuid().toString(QUuid::Id128);
 }
+
 } // namespace util
 } // namespace linglong

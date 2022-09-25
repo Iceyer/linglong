@@ -114,13 +114,12 @@ int updateInstalledAppInfoDb()
  *
  * @return int: 0:成功 其它:失败
  */
-int insertAppRecord(linglong::package::AppMetaInfo *package, const QString &installType, const QString &userName)
+int insertAppRecord(linglong::package::MetaInfo *package, const QString &installType, const QString &userName)
 {
     // installType 字段暂时保留
     QString insertSql =
         QString(
-            "INSERT INTO installedAppInfo(appId,name,version,arch,kind,runtime,uabUrl,repoName,description,user,size,channel,module)\
-    VALUES('%1','%2','%3','%4','%5','%6','%7','%8','%9','%10','%11','%12','%13')")
+            "INSERT INTO installedAppInfo(appId,name,version,arch,kind,runtime,uabUrl,repoName,description,user,size,channel,module) VALUES('%1','%2','%3','%4','%5','%6','%7','%8','%9','%10','%11','%12','%13')")
             .arg(package->appId)
             .arg(package->name)
             .arg(package->version)
@@ -281,7 +280,7 @@ bool getAppInstalledStatus(const QString &appId, const QString &appVer, const QS
  * @return bool: true:成功 false:失败
  */
 bool getAllVerAppInfo(const QString &appId, const QString &appVer, const QString &appArch, const QString &userName,
-                      linglong::package::AppMetaInfoList &pkgList)
+                      linglong::package::MetaInfoList &pkgList)
 {
     if (!getAppInstalledStatus(appId, appVer, appArch, "", "", userName)) {
         qCritical() << "getAllVerAppInfo app:" + appId + ",version:" + appVer + ",userName:" + userName
@@ -313,7 +312,7 @@ bool getAllVerAppInfo(const QString &appId, const QString &appVer, const QString
     }
     sqlQuery.first();
     do {
-        auto info = QPointer<linglong::package::AppMetaInfo>(new linglong::package::AppMetaInfo);
+        auto info = QPointer<linglong::package::MetaInfo>(new linglong::package::MetaInfo);
         info->appId = sqlQuery.value(1).toString().trimmed();
         info->name = sqlQuery.value(2).toString().trimmed();
         info->arch = sqlQuery.value(4).toString().trimmed();
@@ -342,7 +341,7 @@ bool getAllVerAppInfo(const QString &appId, const QString &appVer, const QString
  * @return bool: true:成功 false:失败
  */
 bool getInstalledAppInfo(const QString &appId, const QString &appVer, const QString &appArch, const QString &channel,
-                         const QString &module, const QString &userName, linglong::package::AppMetaInfoList &pkgList)
+                         const QString &module, const QString &userName, linglong::package::MetaInfoList &pkgList)
 {
     if (!getAppInstalledStatus(appId, appVer, appArch, channel, module, userName)) {
         qCritical() << "getInstalledAppInfo app:" + appId + ",version:" + appVer + ",channel:" + channel
@@ -350,6 +349,7 @@ bool getInstalledAppInfo(const QString &appId, const QString &appVer, const QStr
         return false;
     }
 
+    // FIXME: NEVER USE "SELECT *" IN PRODUCT
     QString selectSql = QString("SELECT * FROM installedAppInfo WHERE appId = '%1'").arg(appId);
     QString condition = "";
     if (!userName.isEmpty()) {
@@ -384,7 +384,7 @@ bool getInstalledAppInfo(const QString &appId, const QString &appVer, const QStr
     sqlQuery.last();
     int recordCount = sqlQuery.at() + 1;
     if (recordCount > 0) {
-        auto info = QPointer<linglong::package::AppMetaInfo>(new linglong::package::AppMetaInfo);
+        auto info = QPointer<linglong::package::MetaInfo>(new linglong::package::MetaInfo);
         info->appId = sqlQuery.value(1).toString().trimmed();
         info->name = sqlQuery.value(2).toString().trimmed();
         info->arch = sqlQuery.value(4).toString().trimmed();
@@ -466,7 +466,7 @@ bool queryAllInstalledApp(const QString &userName, QString &result, QString &err
  *
  * @return bool: true: 成功 false: 失败
  */
-bool getAppMetaInfoListByJson(const QString &jsonString, linglong::package::AppMetaInfoList &appList)
+bool getMetaInfoListByJson(const QString &jsonString, linglong::package::MetaInfoList &appList)
 {
     QJsonParseError parseJsonErr;
     QJsonDocument document = QJsonDocument::fromJson(jsonString.toUtf8(), &parseJsonErr);
@@ -477,8 +477,8 @@ bool getAppMetaInfoListByJson(const QString &jsonString, linglong::package::AppM
     for (int i = 0; i < array.size(); ++i) {
         QJsonObject dataObj = array.at(i).toObject();
         const QString jsonItem = QString(QJsonDocument(dataObj).toJson(QJsonDocument::Compact));
-        auto appItem = linglong::util::loadJSONString<linglong::package::AppMetaInfo>(jsonItem);
-        appList.push_back(QPointer<linglong::package::AppMetaInfo>(appItem));
+        auto appItem = linglong::util::loadJSONString<linglong::package::MetaInfo>(jsonItem);
+        appList.push_back(QPointer<linglong::package::MetaInfo>(appItem));
     }
     return true;
 }

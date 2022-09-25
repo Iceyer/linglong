@@ -24,22 +24,22 @@ class LinglongBuilder
 {
     Q_OBJECT
 public:
-    linglong::util::Error create(const QString &projectName) override;
+    util::Error create(const QString &projectName) override;
 
-    linglong::util::Error build() override;
+    util::Error build() override;
 
-    linglong::util::Error exportBundle(const QString &outputFilepath, bool useLocalDir) override;
+    util::Error exportBundle(const QString &outputFilepath, bool useLocalDir) override;
 
-    linglong::util::Error push(const QString &ref) override;
+    util::Error push(const QString &ref) override;
 
-    linglong::util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel,
+    util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel,
                                bool force) override;
 
-    linglong::util::Error run() override;
+    util::Error run() override;
 
-    linglong::util::Error initRepo();
+    util::Error initRepo();
 
-    linglong::util::Error buildFlow(Project* project);
+    util::Error buildFlow(Project* project);
 };
 
 // TODO: remove later

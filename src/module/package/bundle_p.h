@@ -49,7 +49,7 @@ public:
     {
     }
 
-    linglong::util::Error make(const QString &dataPath, const QString &outputFilePath);
+    util::Error make(const QString &dataPath, const QString &outputFilePath);
 
     template<typename P>
     inline uint16_t file16ToCpu(uint16_t val, const P &ehdr)
@@ -81,7 +81,7 @@ public:
     // get elf offset size
     auto getElfSize(const QString elfFilePath) -> decltype(-1);
 
-    linglong::util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel, bool force);
+    util::Error push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel, bool force);
 };
 } // namespace package
 } // namespace linglong

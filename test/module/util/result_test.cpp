@@ -12,11 +12,13 @@
 
 #include "src/module/util/result.h"
 
+using namespace linglong;
+
 TEST(Moduel_Util, Result)
 {
-    auto funcLevel_1 = []() -> linglong::util::Error { return NewError() << -1 << "this is level 1 error"; };
+    auto funcLevel_1 = []() -> util::Error { return NewError() << -1 << "this is level 1 error"; };
 
-    auto funcLevel_2 = [=]() -> linglong::util::Error {
+    auto funcLevel_2 = [=]() -> util::Error {
         auto r = funcLevel_1();
         return NewError(r) << -2 << "this is level 2 error";
     };

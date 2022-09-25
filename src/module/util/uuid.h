@@ -14,6 +14,8 @@
 
 namespace linglong {
 namespace util {
+
 QString genUuid();
-}
+
+} // namespace util
 } // namespace linglong

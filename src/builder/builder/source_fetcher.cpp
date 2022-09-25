@@ -23,13 +23,13 @@ QString SourceFetcher::fixSuffix(const QFileInfo &fi)
     return fi.suffix();
 }
 
-linglong::util::Error SourceFetcher::extractFile(const QString &path, const QString &dir)
+util::Error SourceFetcher::extractFile(const QString &path, const QString &dir)
 {
     QFileInfo fi(path);
 
-    QMap<QString, std::function<linglong::util::Error(const QString &path, const QString &dir)>> subcommandMap = {
+    QMap<QString, std::function<util::Error(const QString &path, const QString &dir)>> subcommandMap = {
         {CompressedFileTarXz,
-         [](const QString &path, const QString &dir) -> linglong::util::Error {
+         [](const QString &path, const QString &dir) -> util::Error {
              auto ret = runner::Runner("tar", {"-C", dir, "-xvf", path}, -1);
              if (!ret) {
                  return NewError(-1, "extract " + path + "failed");
@@ -73,7 +73,7 @@ QString SourceFetcherPrivate::sourceTargetPath() const
     return path;
 }
 
-linglong::util::Error SourceFetcherPrivate::fetchArchiveFile()
+util::Error SourceFetcherPrivate::fetchArchiveFile()
 {
     Q_Q(SourceFetcher);
 
@@ -207,7 +207,7 @@ util::Error SourceFetcher::patch()
     return d->handleLocalPatch();
 }
 
-linglong::util::Error SourceFetcher::fetch()
+util::Error SourceFetcher::fetch()
 {
     Q_D(SourceFetcher);
 

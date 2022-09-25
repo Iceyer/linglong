@@ -10,13 +10,11 @@
 
 #pragma once
 
-#include <QDBusArgument>
-#include <QList>
-#include <QObject>
-
-#include "module/package/package.h"
-#include "oci.h"
+#include "module/util/serialize/json.h"
 #include "module/util/result.h"
+
+namespace linglong {
+namespace runtime {
 
 class Container : public Serialize
 {
@@ -28,6 +26,10 @@ public:
     Q_SERIALIZE_ITEM_MEMBER(QString, PackageName, packageName)
     Q_SERIALIZE_ITEM_MEMBER(QString, WorkingDirectory, workingDirectory)
 
-    linglong::util::Error create(const QString& ref);
+    util::Error create(const QString &ref);
 };
-Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE(Container)
+
+} // namespace runtime
+} // namespace linglong
+
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::runtime, Container)

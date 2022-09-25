@@ -37,7 +37,7 @@ class CommandHelper
     friend class linglong::util::Singleton<CommandHelper>;
 
 public:
-    void showContainer(const ContainerList &list, const QString &format);
+    void showContainer(const runtime::ContainerList &list, const QString &format);
     int namespaceEnter(pid_t pid, const QStringList &args);
     QStringList getUserEnv(const QStringList &envList);
 
@@ -48,20 +48,6 @@ private:
     int execArgs(const std::vector<std::string> &args, const std::vector<std::string> &envStrVector);
     QList<pid_t> childrenOf(pid_t p);
 };
-
-inline int CommandHelper::bringDownPermissionsTo(const struct stat &fileStat)
-{
-    __gid_t newGid[1] = {fileStat.st_gid};
-
-    setgroups(1, newGid);
-
-    setgid(fileStat.st_gid);
-    setegid(fileStat.st_gid);
-
-    setuid(fileStat.st_uid);
-    seteuid(fileStat.st_uid);
-    return 0;
-}
 
 } // namespace cli
 } // namespace linglong

@@ -58,8 +58,6 @@ TEST(PermissionTest, LoadJson)
 
     // foreach show r/rw key
     for (const auto &key : userStaticMountMap.keys()) {
-        qInfo() << key;
-        qInfo() << "userStaticMountMap.value(key):" << userStaticMountMap.value(key);
         if (userTypeList.indexOf(key) != -1
             && (userStaticMountMap.value(key) == "r " || userStaticMountMap.value(key) == "rw")) {
             EXPECT_TRUE(true);

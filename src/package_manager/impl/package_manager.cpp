@@ -28,7 +28,6 @@
 #include "appinfo_cache.h"
 #include "module/util/job/job.h"
 #include "job_manager.h"
-#include "service_dbus_common.h"
 
 namespace linglong {
 namespace package_manager {
@@ -102,7 +101,7 @@ uid_t getDBusCallerUid(QDBusContext &ctx)
     return -1;
 }
 
-std::unique_ptr<package::AppMetaInfo> takeLatestApp(const QString &appId, package::AppMetaInfoList &appList)
+std::unique_ptr<package::MetaInfo> takeLatestApp(const QString &appId, package::MetaInfoList &appList)
 {
     int latestIndex = 0;
     QString curVersion = linglong::util::APP_MIN_VERSION;
@@ -116,7 +115,7 @@ std::unique_ptr<package::AppMetaInfo> takeLatestApp(const QString &appId, packag
             latestIndex = index;
         }
     }
-    return std::unique_ptr<package::AppMetaInfo>(appList.takeAt(latestIndex).data());
+    return std::unique_ptr<package::MetaInfo>(appList.takeAt(latestIndex).data());
 }
 
 PackageManagerPrivate::PackageManagerPrivate(PackageManager *parent)
@@ -193,7 +192,7 @@ bool PackageManagerPrivate::getAppJsonArray(const QString &jsonString, QJsonValu
  *
  * @return bool: true:成功 false:失败
  */
-bool PackageManagerPrivate::loadAppInfo(const QString &jsonString, linglong::package::AppMetaInfoList &appList,
+bool PackageManagerPrivate::loadAppInfo(const QString &jsonString, linglong::package::MetaInfoList &appList,
                                         QString &err)
 {
     QJsonValue arrayValue;
@@ -209,7 +208,7 @@ bool PackageManagerPrivate::loadAppInfo(const QString &jsonString, linglong::pac
         QJsonObject dataObj = arr.at(i).toObject();
         const QString jsonString = QString(QJsonDocument(dataObj).toJson(QJsonDocument::Compact));
         // qInfo().noquote() << jsonString;
-        QPointer<package::AppMetaInfo> appItem(util::loadJSONString<package::AppMetaInfo>(jsonString));
+        QPointer<package::MetaInfo> appItem(util::loadJSONString<package::MetaInfo>(jsonString));
         appList.push_back(appItem);
     }
     return true;
@@ -254,7 +253,7 @@ void PackageManagerPrivate::addAppConfig(const QString &appId, const QString &ve
 {
     // 是否为多版本
     if (linglong::util::getAppInstalledStatus(appId, "", arch, "", "", "")) {
-        linglong::package::AppMetaInfoList pkgList;
+        linglong::package::MetaInfoList pkgList;
         // 查找当前已安装软件包的最高版本
         linglong::util::getInstalledAppInfo(appId, "", arch, "", "", "", pkgList);
         auto it = pkgList.at(0);
@@ -297,7 +296,7 @@ void PackageManagerPrivate::delAppConfig(const QString &appId, const QString &ve
 {
     // 是否为多版本
     if (linglong::util::getAppInstalledStatus(appId, "", arch, "", "", "")) {
-        linglong::package::AppMetaInfoList pkgList;
+        linglong::package::MetaInfoList pkgList;
         // 查找当前已安装软件包的最高版本
         linglong::util::getInstalledAppInfo(appId, "", arch, "", "", "", pkgList);
         auto it = pkgList.at(0);
@@ -357,7 +356,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
     util::Error result(NoError());
     QString userName = linglong::util::getUserName();
 
-    std::unique_ptr<package::AppMetaInfo> latestMetaInfo;
+    std::unique_ptr<package::MetaInfo> latestMetaInfo;
     std::tie(result, latestMetaInfo) = getLatestPackageMetaInfo(ref);
 
     if (!latestMetaInfo) {
@@ -374,7 +373,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
     qDebug() << "install package runtime info:" << latestMetaInfo->runtime
              << ", package runtime version:" << runtimeRef.version;
     QStringList runtimeVersion = runtimeRef.version.split(".");
-    std::unique_ptr<package::AppMetaInfo> installRuntimeInfo = nullptr;
+    std::unique_ptr<package::MetaInfo> installRuntimeInfo = nullptr;
     if (runtimeVersion.size() != 4) {
         runtimeRef.version = "";
     }
@@ -560,11 +559,11 @@ package::Ref PackageManagerPrivate::getRuntimeBaseRef(const package::Ref &ref)
     return package::Ref(QString());
 }
 
-std::tuple<util::Error, std::unique_ptr<package::AppMetaInfo>>
+std::tuple<util::Error, std::unique_ptr<package::MetaInfo>>
 PackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref)
 {
     package::Ref latestRef("");
-    std::unique_ptr<package::AppMetaInfo> latestMetaInfo(nullptr);
+    std::unique_ptr<package::MetaInfo> latestMetaInfo(nullptr);
     Reply reply;
     QString appData = "";
 
@@ -576,7 +575,7 @@ PackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref)
 
     qDebug() << "appData from server" << appData;
 
-    linglong::package::AppMetaInfoList appList;
+    linglong::package::MetaInfoList appList;
     ret = loadAppInfo(appData, appList, reply.message);
     if (!ret || appList.size() < 1) {
         reply.message = "app:" + ref.appId + ", version:" + ref.version + " not found in repo";
@@ -694,7 +693,7 @@ QList<package::Ref> PackageManagerPrivate::findRefsToUninstall(const package::Re
         return {};
     }
 
-    package::AppMetaInfoList pkgList;
+    package::MetaInfoList pkgList;
     if (deleteAllVersion) {
         util::getAllVerAppInfo(ref.appId, "", ref.appId, "", pkgList);
     } else {
@@ -735,7 +734,7 @@ QueryReply PackageManagerPrivate::Query(const QueryParamOption &paramOption)
         }
         return reply;
     }
-    linglong::package::AppMetaInfoList pkgList;
+    linglong::package::MetaInfoList pkgList;
     QString arch = linglong::util::hostArch();
     QString appData = "";
     int status = STATUS_CODE(kFail);
@@ -879,9 +878,6 @@ QString PackageManager::Uninstall(const QString &ref, const QVariantMap &options
 QueryReply PackageManager::Query(const QueryParamOption &paramOption)
 {
     Q_D(PackageManager);
-    if ("flatpak" == paramOption.repoPoint) {
-        return PACKAGEMANAGER_FLATPAK_IMPL->Query(paramOption);
-    }
     QueryReply reply;
     QString appId = paramOption.appId.trimmed();
     if (appId.isEmpty()) {

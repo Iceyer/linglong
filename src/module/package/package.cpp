@@ -16,10 +16,13 @@
 
 void linglong::package::registerAllMetaType()
 {
-    qSerializeRegister<linglong::package::Info>();
-    qSerializeRegister<linglong::package::Permission>();
-    qSerializeRegister<linglong::package::Filesystem>();
-    qSerializeRegister<linglong::package::User>();
-    qSerializeRegister<linglong::package::OverlayfsRootfs>();
-    qSerializeRegister<linglong::package::AppMetaInfo>();
+    static std::once_flag flag;
+    std::call_once(flag, []() {
+        qSerializeRegister<linglong::package::Info>();
+        qSerializeRegister<linglong::package::Permission>();
+        qSerializeRegister<linglong::package::Filesystem>();
+        qSerializeRegister<linglong::package::User>();
+        qSerializeRegister<linglong::package::OverlayfsRootfs>();
+        qSerializeRegister<linglong::package::MetaInfo>();
+    });
 }

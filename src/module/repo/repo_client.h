@@ -1,11 +1,11 @@
 /*
-* Copyright (c) 2022. Uniontech Software Ltd. All rights reserved.
-*
-* Author:     Iceyer <me@iceyer.net>
-*
-* Maintainer: Iceyer <me@iceyer.net>
-*
-* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright (c) 2022. Uniontech Software Ltd. All rights reserved.
+ *
+ * Author:     Iceyer <me@iceyer.net>
+ *
+ * Maintainer: Iceyer <me@iceyer.net>
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 #ifndef LINGLONG_SRC_MODULE_REPO_REPO_CLIENT_H_
@@ -30,18 +30,13 @@ class Response : public Serialize
     Q_SERIALIZE_CONSTRUCTOR(Response)
     Q_SERIALIZE_PROPERTY(int, code);
     Q_SERIALIZE_PROPERTY(QString, msg);
-    Q_SERIALIZE_PROPERTY(linglong::package::AppMetaInfoList, data);
+    Q_SERIALIZE_PROPERTY(linglong::package::MetaInfoList, data);
 };
 
 class RepoClient
 {
 public:
-//    RepoClient(const QString& repoPath);
-
-    std::tuple<util::Error, package::AppMetaInfoList> QueryApps(const package::Ref& ref);
-
-private:
-
+    std::tuple<util::Error, package::MetaInfoList> QueryApps(const package::Ref &ref);
 };
 
 } // namespace repo

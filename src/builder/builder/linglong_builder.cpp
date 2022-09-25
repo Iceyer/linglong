@@ -41,7 +41,7 @@
 namespace linglong {
 namespace builder {
 
-linglong::util::Error commitBuildOutput(Project *project, AnnotationsOverlayfsRootfs *overlayfs)
+util::Error commitBuildOutput(Project *project, AnnotationsOverlayfsRootfs *overlayfs)
 {
     auto output = project->config().cacheInstallPath("files");
     linglong::util::ensureDir(output);
@@ -107,7 +107,7 @@ linglong::util::Error commitBuildOutput(Project *project, AnnotationsOverlayfsRo
     }
 
     auto moveDir = [](const QStringList targetList, const QString &srcPath,
-                      const QString &destPath) -> linglong::util::Error {
+                      const QString &destPath) -> util::Error {
         for (auto target : targetList) {
             auto srcDir = QStringList {srcPath, target}.join(QDir::separator());
             auto destDir = QStringList {destPath, target}.join(QDir::separator());
@@ -148,7 +148,7 @@ linglong::util::Error commitBuildOutput(Project *project, AnnotationsOverlayfsRo
         return moveStatus;
     }
 
-    auto createInfo = [](Project *project) -> linglong::util::Error {
+    auto createInfo = [](Project *project) -> util::Error {
         package::Info info;
 
         info.kind = project->package->kind;
@@ -242,7 +242,7 @@ package::Ref fuzzyRef(const Serialize *obj)
     return ref;
 }
 
-linglong::util::Error LinglongBuilder::initRepo()
+util::Error LinglongBuilder::initRepo()
 {
     // if local ostree is not exist, create and init it
     if (!QDir(BuilderConfig::instance()->ostreePath()).exists()) {
@@ -279,7 +279,7 @@ public:
 };
 
 // FIXME: should merge with runtime
-int startContainer(Container *c, Runtime *r)
+int startContainer(runtime::Container *c, Runtime *r)
 {
 #define LINGLONG 118
 
@@ -368,7 +368,7 @@ int startContainer(Container *c, Runtime *r)
     return result->wstatus;
 }
 
-linglong::util::Error LinglongBuilder::create(const QString &projectName)
+util::Error LinglongBuilder::create(const QString &projectName)
 {
     auto projectPath = QStringList {QDir::currentPath(), projectName}.join("/");
     auto configFilePath = QStringList {projectPath, "linglong.yaml"}.join("/");
@@ -388,9 +388,9 @@ linglong::util::Error LinglongBuilder::create(const QString &projectName)
     return NoError();
 }
 
-linglong::util::Error LinglongBuilder::build()
+util::Error LinglongBuilder::build()
 {
-    linglong::util::Error ret(NoError());
+    util::Error ret(NoError());
 
     ret = initRepo();
     if (!ret.success()) {
@@ -460,9 +460,9 @@ linglong::util::Error LinglongBuilder::build()
     return NoError();
 }
 
-linglong::util::Error LinglongBuilder::buildFlow(Project *project)
+util::Error LinglongBuilder::buildFlow(Project *project)
 {
-    linglong::util::Error ret(NoError());
+    util::Error ret(NoError());
 
     linglong::builder::BuilderConfig::instance()->setProjectName(project->package->id);
 
@@ -548,7 +548,7 @@ linglong::util::Error LinglongBuilder::buildFlow(Project *project)
     QScopedPointer<Runtime> rt(fromVariant<Runtime>(json.toVariant()));
     auto r = rt.get();
 
-    auto container = new Container(this);
+    auto container = new runtime::Container(this);
     ret = container->create("");
     if (!ret.success()) {
         return WrapError(ret, "create container failed");
@@ -654,7 +654,7 @@ linglong::util::Error LinglongBuilder::buildFlow(Project *project)
     return NoError();
 }
 
-linglong::util::Error LinglongBuilder::exportBundle(const QString &outputFilePath, bool useLocalDir)
+util::Error LinglongBuilder::exportBundle(const QString &outputFilePath, bool useLocalDir)
 {
     auto exportPath = QStringList {BuilderConfig::instance()->projectRoot(), "export"}.join("/");
 
@@ -697,16 +697,16 @@ linglong::util::Error LinglongBuilder::exportBundle(const QString &outputFilePat
     return NoError();
 }
 
-linglong::util::Error LinglongBuilder::push(const QString &ref)
+util::Error LinglongBuilder::push(const QString &ref)
 {
     repo::OSTreeRepo repo(BuilderConfig::instance()->repoPath(), BuilderConfig::instance()->remoteRepoEndpoint,
                           BuilderConfig::instance()->remoteRepoName);
     repo.push(package::Ref(ref), false);
 
-    return linglong::util::Error(NoError());
+    return util::Error(NoError());
 }
 
-linglong::util::Error LinglongBuilder::push(const QString &bundleFilePath, const QString &repoUrl,
+util::Error LinglongBuilder::push(const QString &bundleFilePath, const QString &repoUrl,
                                             const QString &repoChannel, bool force)
 {
     // TODO: if the kind is not app, don't push bundle
@@ -720,11 +720,11 @@ linglong::util::Error LinglongBuilder::push(const QString &bundleFilePath, const
     return NoError();
 }
 
-linglong::util::Error LinglongBuilder::run()
+util::Error LinglongBuilder::run()
 {
     repo::OSTreeRepo repo(BuilderConfig::instance()->repoPath());
 
-    linglong::util::Error ret(NoError());
+    util::Error ret(NoError());
 
     auto projectConfigPath = QStringList {BuilderConfig::instance()->projectRoot(), "linglong.yaml"}.join("/");
 

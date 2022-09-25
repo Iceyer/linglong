@@ -253,7 +253,7 @@ private:
         qDebug() << "ostree repo path is" << ostreePath;
     }
 
-    linglong::util::Error ostreeRun(const QStringList &args, QByteArray *stdout = nullptr)
+    util::Error ostreeRun(const QStringList &args, QByteArray *stdout = nullptr)
     {
         QProcess ostree;
         ostree.setProgram("ostree");
@@ -665,7 +665,7 @@ private:
     Q_DECLARE_PUBLIC(OSTreeRepo);
 };
 
-linglong::util::Error OSTreeRepo::importDirectory(const package::Ref &ref, const QString &path)
+util::Error OSTreeRepo::importDirectory(const package::Ref &ref, const QString &path)
 {
     Q_D(OSTreeRepo);
 
@@ -674,27 +674,27 @@ linglong::util::Error OSTreeRepo::importDirectory(const package::Ref &ref, const
     return ret;
 }
 
-linglong::util::Error OSTreeRepo::import(const package::Bundle &bundle)
+util::Error OSTreeRepo::import(const package::Bundle &bundle)
 {
     return NoError();
 }
 
-linglong::util::Error OSTreeRepo::exportBundle(package::Bundle &bundle)
+util::Error OSTreeRepo::exportBundle(package::Bundle &bundle)
 {
     return NoError();
 }
 
-std::tuple<linglong::util::Error, QList<package::Ref>> OSTreeRepo::list(const QString &filter)
+std::tuple<util::Error, QList<package::Ref>> OSTreeRepo::list(const QString &filter)
 {
     return {NoError(), {}};
 }
 
-std::tuple<linglong::util::Error, QList<package::Ref>> OSTreeRepo::query(const QString &filter)
+std::tuple<util::Error, QList<package::Ref>> OSTreeRepo::query(const QString &filter)
 {
     return {NoError(), {}};
 }
 
-linglong::util::Error OSTreeRepo::push(const package::Ref &ref, bool force)
+util::Error OSTreeRepo::push(const package::Ref &ref, bool force)
 {
     Q_D(OSTreeRepo);
 
@@ -744,12 +744,12 @@ linglong::util::Error OSTreeRepo::push(const package::Ref &ref, bool force)
     return WrapError(d->cleanUploadTask(d->remoteRepoName, taskID), "call cleanUploadTask failed");
 }
 
-linglong::util::Error OSTreeRepo::push(const package::Bundle &bundle, bool force)
+util::Error OSTreeRepo::push(const package::Bundle &bundle, bool force)
 {
     return NoError();
 }
 
-linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
+util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
 {
     Q_D(OSTreeRepo);
     auto refStr = ref.toOSTreeRefLocalString();
@@ -762,14 +762,14 @@ linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, bool force)
  * @param extraData: send back extraData with signal pullProgressChanged
  * @return
  */
-linglong::util::Error OSTreeRepo::pull(const package::Ref &ref, QObject *controller)
+util::Error OSTreeRepo::pull(const package::Ref &ref, QObject *controller)
 {
     Q_D(OSTreeRepo);
     auto refStr = ref.toOSTreeRefLocalString();
     return WrapError(d->pull(ref.repo, refStr, controller));
 }
 
-linglong::util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
+util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
 {
     Q_D(OSTreeRepo);
     // Fixme: remote name maybe not repo and there should support multiple remote
@@ -785,14 +785,14 @@ linglong::util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
     return WrapError(ret);
 }
 
-linglong::util::Error OSTreeRepo::init(const QString &mode)
+util::Error OSTreeRepo::init(const QString &mode)
 {
     Q_D(OSTreeRepo);
 
     return WrapError(d->ostreeRun({"init", QString("--mode=%1").arg(mode)}));
 }
 
-linglong::util::Error OSTreeRepo::remoteAdd(const QString &repoName, const QString &repoUrl)
+util::Error OSTreeRepo::remoteAdd(const QString &repoName, const QString &repoUrl)
 {
     Q_D(OSTreeRepo);
 
@@ -809,7 +809,7 @@ OSTreeRepo::OSTreeRepo(const QString &localRepoPath, const QString &remoteEndpoi
 {
 }
 
-linglong::util::Error OSTreeRepo::checkout(const package::Ref &ref, const QString &subPath, const QString &targetPath,
+util::Error OSTreeRepo::checkout(const package::Ref &ref, const QString &subPath, const QString &targetPath,
                                            const QStringList &extraArgs)
 {
     QStringList args = {"checkout", "--union"};
@@ -825,7 +825,7 @@ linglong::util::Error OSTreeRepo::checkout(const package::Ref &ref, const QStrin
     return WrapError(dd_ptr->ostreeRun(args));
 }
 
-linglong::util::Error OSTreeRepo::checkoutAll(const package::Ref &ref, const QString &subPath, const QString &target)
+util::Error OSTreeRepo::checkoutAll(const package::Ref &ref, const QString &subPath, const QString &target)
 {
     Q_D(OSTreeRepo);
 
@@ -871,29 +871,6 @@ bool OSTreeRepo::isRefExists(const package::Ref &ref)
         "sh", {"-c", QString("ostree refs --repo=%1 | grep -Fx %2").arg(d->ostreePath).arg(runtimeRef)}, -1);
 
     return ret;
-}
-
-package::Ref OSTreeRepo::localLatestRef(const package::Ref &ref)
-{
-    Q_D(OSTreeRepo);
-
-    QString latestVer = "latest";
-
-    QString args = QString("ostree refs repo --repo=%1 | grep %2 | grep %3")
-                       .arg(d->ostreePath)
-                       .arg(ref.appId)
-                       .arg(util::hostArch() + "/" + "runtime");
-
-    auto result = runner::RunnerRet("sh", {"-c", args}, -1);
-
-    if (std::get<0>(result)) {
-        // last line of result is null, remove it
-        std::get<1>(result).removeLast();
-
-        latestVer = linglong::util::latestVersion(std::get<1>(result));
-    }
-
-    return package::Ref("", ref.channel, ref.appId, latestVer, ref.arch, ref.module);
 }
 
 package::Ref OSTreeRepo::remoteLatestRef(const package::Ref &ref)
@@ -957,7 +934,7 @@ package::Ref OSTreeRepo::latestOfRef(const QString &appId, const QString &appVer
     return package::Ref(ref);
 }
 
-std::tuple<linglong::util::Error, QStringList> OSTreeRepo::remoteList()
+std::tuple<util::Error, QStringList> OSTreeRepo::remoteList()
 {
     QStringList remoteList;
     QStringList args = {"remote", "list"};

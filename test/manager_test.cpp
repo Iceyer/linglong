@@ -299,11 +299,11 @@ TEST(Package, query01)
     linglong::service::QueryParamOption paramOption;
     paramOption.appId = QString();
 
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() == 0 ? true : false;
     EXPECT_EQ(ret, true);
     // stop service
@@ -323,11 +323,11 @@ TEST(Package, query02)
     linglong::service::QueryParamOption paramOption;
     paramOption.appId = "org.test1";
 
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() == 0 ? true : false;
     EXPECT_EQ(ret, true);
     // stop service
@@ -346,11 +346,11 @@ TEST(Package, query03)
     linglong::service::QueryParamOption paramOption;
     paramOption.appId = "cal";
 
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() == 0 ? false : true;
     EXPECT_EQ(ret, true);
     // stop service
@@ -369,11 +369,11 @@ TEST(Package, query04)
     linglong::service::QueryParamOption paramOption;
     paramOption.appId = "com.360.browser-stable";
 
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() == 0 ? false : true;
     EXPECT_EQ(ret, true);
     // stop service
@@ -394,11 +394,11 @@ TEST(Package, query05)
     paramOption.appId = "com.belmoussaoui.Decoder";
     paramOption.repoPoint = "flatpak";
 
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() == 0 ? false : true;
     EXPECT_EQ(ret, true);
     // stop service
@@ -417,11 +417,11 @@ TEST(Package, list01)
     linglong::service::QueryParamOption paramOption;
     paramOption.appId = "";
 
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() == 0 ? true : false;
     EXPECT_EQ(ret, true);
     // stop service
@@ -439,11 +439,11 @@ TEST(Package, list02)
                                                 "/org/deepin/linglong/PackageManager", QDBusConnection::systemBus());
     linglong::service::QueryParamOption paramOption;
     paramOption.appId = "installed";
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() > 0 ? true : false;
     EXPECT_EQ(ret, true);
     // stop service
@@ -462,11 +462,11 @@ TEST(Package, list03)
     linglong::service::QueryParamOption paramOption;
     paramOption.appId = "installed";
     paramOption.repoPoint = "flatpak";
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::QueryReply> dbusReply = pm.Query(paramOption);
     dbusReply.waitForFinished();
     linglong::service::QueryReply reply = dbusReply.value();
-    linglong::util::getAppMetaInfoListByJson(reply.result, retMsg);
+    linglong::util::getMetaInfoListByJson(reply.result, retMsg);
     bool ret = retMsg.size() > 0 ? true : false;
     EXPECT_EQ(ret, true);
     // stop service
@@ -485,7 +485,7 @@ TEST(Package, ps01)
 
     linglong::service::RunParamOption paramOption;
     paramOption.appId = "org.deepin.calculator";
-    linglong::package::AppMetaInfoList retMsg;
+    linglong::package::MetaInfoList retMsg;
     QDBusPendingReply<linglong::service::Reply> reply = pm.Start(paramOption);
     reply.waitForFinished();
 

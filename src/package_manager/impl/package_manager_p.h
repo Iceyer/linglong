@@ -38,7 +38,7 @@ public:
     bool isUserRuntimeInstalled(const QString &userName, const package::Ref &ref);
     bool isUserBaseInstalled(const QString &userName, const package::Ref &ref);
 
-    std::tuple<util::Error, std::unique_ptr<package::AppMetaInfo>> getLatestPackageMetaInfo(const package::Ref &ref);
+    std::tuple<util::Error, std::unique_ptr<package::MetaInfo>> getLatestPackageMetaInfo(const package::Ref &ref);
 
     package::Ref getRuntimeBaseRef(const package::Ref &ref);
 
@@ -69,7 +69,7 @@ public:
      *
      * @return bool: true:成功 false:失败
      */
-    bool loadAppInfo(const QString &jsonString, linglong::package::AppMetaInfoList &appList, QString &err);
+    bool loadAppInfo(const QString &jsonString, linglong::package::MetaInfoList &appList, QString &err);
 
     /*
      * 从服务器查询指定包名/版本/架构的软件包数据

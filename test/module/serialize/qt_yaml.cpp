@@ -10,7 +10,24 @@
 
 #include <gtest/gtest.h>
 
+#include <mutex>
+
 #include "qt_yaml.h"
+#include "serialize_test.h"
+
+inline void registerSerializeTestMetaType()
+{
+    static std::once_flag flag;
+    std::call_once(flag, []() {
+        qSerializeRegister<TestMount>();
+        qSerializeRegister<TestPermission>();
+        qSerializeRegister<TestApp>();
+
+        qSerializeRegister<linglong::test::MountRule>();
+        qSerializeRegister<linglong::test::Permission>();
+        qSerializeRegister<linglong::test::App>();
+    });
+}
 
 auto yamlData = R"MLS00(version: 1.0
 
@@ -21,17 +38,11 @@ runtime:
   source: "linglong/main:org.deepin.Runtime/20.5.0/x86_64/binary"
 )MLS00";
 
-
 TEST(Serialize, YAML_STRING)
 {
     linglong::runtime::registerAllOciMetaType();
 
-    qSerializeRegister<TestMount>();
-    qSerializeRegister<TestPermission>();
-    qSerializeRegister<TestApp>();
-
     YAML::Node doc = YAML::Load(yamlData);
-
     auto app = formYaml<TestApp>(doc);
 
     EXPECT_EQ(app->package->source, "linglong/main:org.deepin.demo/2.2.32/x86_64/binary");
@@ -39,9 +50,7 @@ TEST(Serialize, YAML_STRING)
 
 TEST(Serialize, YAML_NS)
 {
-    qSerializeRegister<linglong::test::MountRule>();
-    qSerializeRegister<linglong::test::Permission>();
-    qSerializeRegister<linglong::test::App>();
+    registerSerializeTestMetaType();
 
     auto path = "../../test/data/demo/app.yml";
     YAML::Node doc = YAML::LoadFile(path);
@@ -54,10 +63,7 @@ TEST(Serialize, YAML_NS)
 TEST(Serialize, YAML)
 {
     linglong::runtime::registerAllOciMetaType();
-
-    qSerializeRegister<TestMount>();
-    qSerializeRegister<TestPermission>();
-    qSerializeRegister<TestApp>();
+    registerSerializeTestMetaType();
 
     auto path = "../../test/data/demo/app.yml";
     YAML::Node doc = YAML::LoadFile(path);

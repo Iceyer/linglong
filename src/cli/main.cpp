@@ -46,7 +46,7 @@ static void qSerializeRegisterAll()
  * @param appMetaInfoList 软件包元信息列表
  *
  */
-void printFlatpakAppInfo(linglong::package::AppMetaInfoList appMetaInfoList)
+void printFlatpakAppInfo(linglong::package::MetaInfoList appMetaInfoList)
 {
     if (appMetaInfoList.size() > 0) {
         if ("flatpaklist" == appMetaInfoList.at(0)->appId) {
@@ -102,7 +102,7 @@ void doIntOperate(int sig)
  * @param appMetaInfoList 软件包元信息列表
  *
  */
-void printAppInfo(linglong::package::AppMetaInfoList appMetaInfoList)
+void printAppInfo(linglong::package::MetaInfoList appMetaInfoList)
 {
     if (appMetaInfoList.size() > 0) {
         qInfo("\033[1m\033[38;5;214m%-32s%-32s%-16s%-12s%-16s%-12s%-s\033[0m", qUtf8Printable("appId"),
@@ -548,12 +548,12 @@ int main(int argc, char **argv)
              auto outputFormat = parser.value(optOutputFormat);
              auto replyString = appManager.List().value().result;
 
-             ContainerList containerList;
+             runtime::ContainerList containerList;
              auto doc = QJsonDocument::fromJson(replyString.toUtf8(), nullptr);
              if (doc.isArray()) {
                  for (auto container : doc.array()) {
                      auto str = QString(QJsonDocument(container.toObject()).toJson());
-                     QPointer<Container> con(linglong::util::loadJSONString<Container>(str));
+                     QPointer<runtime::Container> con(util::loadJSONString<runtime::Container>(str));
                      containerList.push_back(con);
                  }
              }
@@ -625,7 +625,7 @@ int main(int argc, char **argv)
              dbusReply.waitForFinished();
              linglong::service::QueryReply reply = dbusReply.value();
 
-             auto appMetaInfoList = util::arrayFromJson<package::AppMetaInfoList>(reply.result);
+             auto appMetaInfoList = util::arrayFromJson<package::MetaInfoList>(reply.result);
 
              if (1 == appMetaInfoList.size() && "flatpakquery" == appMetaInfoList.at(0)->appId) {
                  printFlatpakAppInfo(appMetaInfoList);
@@ -670,7 +670,7 @@ int main(int argc, char **argv)
                  return dbusReply.error().type();
              }
 
-             auto list = fromVariantList<package::AppMetaInfoList>(toVariant(dbusReply.value()));
+             auto list = fromVariantList<package::MetaInfoList>(toVariant(dbusReply.value()));
              printAppInfo(list);
 
              return 0;

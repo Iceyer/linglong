@@ -30,7 +30,7 @@ public:
     // TODO: use share cache for all project
     QString sourceTargetPath() const;
 
-    linglong::util::Error fetchArchiveFile();
+    util::Error fetchArchiveFile();
 
     util::Error fetchGitRepo();
 

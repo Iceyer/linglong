@@ -31,10 +31,10 @@
 namespace linglong {
 namespace package {
 
-class AppMetaInfo : public Serialize
+class MetaInfo : public Serialize
 {
     Q_OBJECT
-    Q_SERIALIZE_CONSTRUCTOR(AppMetaInfo)
+    Q_SERIALIZE_CONSTRUCTOR(MetaInfo)
 
 public:
     Q_SERIALIZE_PROPERTY(QString, appId);
@@ -67,7 +67,7 @@ public:
 } // namespace package
 } // namespace linglong
 
-Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, AppMetaInfo)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, MetaInfo)
 
 typedef QStringMap QStringMap;
 

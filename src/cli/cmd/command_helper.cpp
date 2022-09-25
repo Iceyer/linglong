@@ -9,11 +9,26 @@
  */
 
 #include "command_helper.h"
+#include "module/package/ref.h"
 
 namespace linglong {
 namespace cli {
 
-void CommandHelper::showContainer(const ContainerList &containerList, const QString &format)
+int CommandHelper::bringDownPermissionsTo(const struct stat &fileStat)
+{
+    __gid_t newGid[1] = {fileStat.st_gid};
+
+    setgroups(1, newGid);
+
+    setgid(fileStat.st_gid);
+    setegid(fileStat.st_gid);
+
+    setuid(fileStat.st_uid);
+    seteuid(fileStat.st_uid);
+    return 0;
+}
+
+void CommandHelper::showContainer(const runtime::ContainerList &containerList, const QString &format)
 {
     QJsonArray jsonArray;
     for (auto const &container : containerList) {

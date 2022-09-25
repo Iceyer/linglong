@@ -27,7 +27,7 @@ public:
     explicit DependFetcher(const BuildDepend &bd, Project *parent);
     ~DependFetcher() override;
 
-    linglong::util::Error fetch(const QString &subPath, const QString &targetPath);
+    util::Error fetch(const QString &subPath, const QString &targetPath);
 
 private:
     QScopedPointer<DependFetcherPrivate> dd_ptr;

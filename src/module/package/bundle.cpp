@@ -19,7 +19,7 @@ namespace linglong {
 namespace package {
 
 // FIXME: there is some problem that in module/util/runner.h, replace later
-static linglong::util::Error runner(const QString &program, const QStringList &args, int timeout = -1)
+static util::Error runner(const QString &program, const QStringList &args, int timeout = -1)
 {
     QProcess process;
     process.setProgram(program);
@@ -48,16 +48,16 @@ Bundle::~Bundle()
 {
 }
 
-linglong::util::Error Bundle::load(const QString &path)
+util::Error Bundle::load(const QString &path)
 {
     return NoError();
 }
-linglong::util::Error Bundle::save(const QString &path)
+util::Error Bundle::save(const QString &path)
 {
     return NoError();
 }
 
-linglong::util::Error Bundle::make(const QString &dataPath, const QString &outputFilePath)
+util::Error Bundle::make(const QString &dataPath, const QString &outputFilePath)
 {
     Q_D(Bundle);
     auto ret = d->make(dataPath, outputFilePath);
@@ -67,7 +67,7 @@ linglong::util::Error Bundle::make(const QString &dataPath, const QString &outpu
     return NewError();
 }
 
-linglong::util::Error Bundle::push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel,
+util::Error Bundle::push(const QString &bundleFilePath, const QString &repoUrl, const QString &repoChannel,
                                    bool force)
 {
     Q_D(Bundle);
@@ -78,7 +78,7 @@ linglong::util::Error Bundle::push(const QString &bundleFilePath, const QString 
     return NoError();
 }
 
-linglong::util::Error BundlePrivate::make(const QString &dataPath, const QString &outputFilePath)
+util::Error BundlePrivate::make(const QString &dataPath, const QString &outputFilePath)
 {
     // 获取存储文件父目录路径
     QString bundleFileDirPath;
@@ -217,7 +217,7 @@ auto BundlePrivate::getElfSize(const QString elfFilePath) -> decltype(-1)
     return size;
 }
 
-linglong::util::Error BundlePrivate::push(const QString &bundleFilePath, const QString &repoUrl,
+util::Error BundlePrivate::push(const QString &bundleFilePath, const QString &repoUrl,
                                           const QString &repoChannel, bool force)
 {
     auto userInfo = util::getUserInfo();

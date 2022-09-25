@@ -11,7 +11,6 @@
 #pragma once
 
 #include <mutex>
-
 #include "module/util/serialize/json.h"
 
 class Root : public Serialize

@@ -109,7 +109,7 @@ public:
         return QJsonDocument(obj).toJson(QJsonDocument::Compact);
     }
 
-    friend QDebug operator<<(QDebug d, const linglong::util::Error &result);
+    friend QDebug operator<<(QDebug d, const util::Error &result);
 
 private:
     struct MessageMeta {

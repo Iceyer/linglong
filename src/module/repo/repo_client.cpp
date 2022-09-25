@@ -18,7 +18,7 @@
 namespace linglong {
 namespace repo {
 
-std::tuple<util::Error, package::AppMetaInfoList> RepoClient::QueryApps(const package::Ref &ref)
+std::tuple<util::Error, package::MetaInfoList> RepoClient::QueryApps(const package::Ref &ref)
 {
     // TODO: query cache Here
     QUrl url(ConfigInstance().repos[kDefaultRepo]->endpoint);

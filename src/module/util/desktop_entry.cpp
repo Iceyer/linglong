@@ -120,7 +120,7 @@ QString DesktopEntry::rawValue(const QString &key, const QString &section, const
     return d->dataMaps.value(section).value(key).toString();
 }
 
-linglong::util::Error DesktopEntry::save(const QString &filepath)
+util::Error DesktopEntry::save(const QString &filepath)
 {
     Q_D(DesktopEntry);
 

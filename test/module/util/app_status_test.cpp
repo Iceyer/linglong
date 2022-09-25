@@ -29,15 +29,15 @@ TEST(AppStatus, GetInstalledAppInfo)
     linglong::util::checkInstalledAppDb();
     linglong::util::updateInstalledAppInfoDb();
 
-    QScopedPointer<linglong::package::AppMetaInfo> appItem(
-        linglong::util::loadJSONString<linglong::package::AppMetaInfo>(appDataJson));
+    QScopedPointer<linglong::package::MetaInfo> appItem(
+        linglong::util::loadJSONString<linglong::package::MetaInfo>(appDataJson));
     const QString userName = linglong::util::getUserName();
 
-    linglong::package::AppMetaInfoList pkgList;
+    linglong::package::MetaInfoList pkgList;
     auto result = linglong::util::getInstalledAppInfo(appItem->appId, "", appItem->arch, "", "", "", pkgList);
     EXPECT_EQ(result, true);
 
-    linglong::package::AppMetaInfoList pkgList1;
+    linglong::package::MetaInfoList pkgList1;
     result = linglong::util::getInstalledAppInfo(appItem->appId, "", appItem->arch, "", "", "", pkgList1);
     EXPECT_EQ(result, true);
 
@@ -45,8 +45,8 @@ TEST(AppStatus, GetInstalledAppInfo)
     QString error = "";
     result = linglong::util::queryAllInstalledApp("deepin-linglong", ret, error);
     EXPECT_EQ(result, true);
-    linglong::package::AppMetaInfoList appMetaInfoList;
-    linglong::util::getAppMetaInfoListByJson(ret, appMetaInfoList);
+    linglong::package::MetaInfoList appMetaInfoList;
+    linglong::util::getMetaInfoListByJson(ret, appMetaInfoList);
 
     auto code = linglong::util::insertAppRecord(appItem.data(), "user", userName);
     code = linglong::util::deleteAppRecord(appItem->appId, "1.0.0", linglong::util::hostArch(), "", "", userName);

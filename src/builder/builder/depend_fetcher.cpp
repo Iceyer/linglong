@@ -41,7 +41,7 @@ DependFetcher::DependFetcher(const BuildDepend &bd, Project *parent)
 
 DependFetcher::~DependFetcher() = default;
 
-linglong::util::Error DependFetcher::fetch(const QString &subPath, const QString &targetPath)
+util::Error DependFetcher::fetch(const QString &subPath, const QString &targetPath)
 {
     repo::OSTreeRepo ostree(BuilderConfig::instance()->repoPath());
     // depends with source > depends from remote > depends from local

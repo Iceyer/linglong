@@ -43,7 +43,6 @@ set(LL_SERVICE_SOURCES
     ../module/util/xdg.cpp
     ../package_manager/impl/app_status.cpp
     ../package_manager/impl/appinfo_cache.cpp
-    ../package_manager/impl/service_dbus_common.h
     impl/app_manager.cpp
     impl/param_option.h
     impl/reply.h

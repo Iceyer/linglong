@@ -37,13 +37,13 @@ public:
 
     void setSourceRoot(const QString &path);
 
-    linglong::util::Error fetch();
+    util::Error fetch();
 
-    linglong::util::Error patch();
+    util::Error patch();
 
 public:
     QString fixSuffix(const QFileInfo &fi);
-    linglong::util::Error extractFile(const QString &path, const QString &dir);
+    util::Error extractFile(const QString &path, const QString &dir);
 
 private:
     QString srcRoot;

@@ -105,9 +105,8 @@ public:
     // permissions
     Q_SERIALIZE_PTR_PROPERTY(Permission, permissions);
 
-    //overlayfs mount
+    // overlayfs mount
     Q_SERIALIZE_PTR_PROPERTY(OverlayfsRootfs, overlayfs);
-
 };
 
 } // namespace package
@@ -118,23 +117,5 @@ Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, Permission)
 Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, Filesystem)
 Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, User)
 Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::package, OverlayfsRootfs)
-
-// inline QDBusArgument &operator<<(QDBusArgument &argument, const linglong::package::Info &message)
-//{
-//     argument.beginStructure();
-//     argument << message.appid;
-//     argument << message.name;
-//     argument.endStructure();
-//     return argument;
-// }
-//
-// inline const QDBusArgument &operator>>(const QDBusArgument &argument, linglong::package::Info &message)
-//{
-//     argument.beginStructure();
-//     argument >> message.appid;
-//     argument >> message.name;
-//     argument.endStructure();
-//     return argument;
-// }
 
 #endif /* LINGLONG_SRC_MODULE_PACKAGE_INFO_H_ */

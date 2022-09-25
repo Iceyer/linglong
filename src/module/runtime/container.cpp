@@ -14,11 +14,14 @@
 #include "module/util/xdg.h"
 #include "module/util/file.h"
 
+namespace linglong {
+namespace runtime {
 
-linglong::util::Error Container::create(const QString& ref)
+util::Error Container::create(const QString &ref)
 {
     auto containerID = linglong::util::genUuid();
-    auto containerWorkDirectory = linglong::util::userRuntimeDir().absoluteFilePath(QString("linglong/%1").arg(containerID));
+    auto containerWorkDirectory =
+        linglong::util::userRuntimeDir().absoluteFilePath(QString("linglong/%1").arg(containerID));
 
     id = containerID;
     workingDirectory = containerWorkDirectory;
@@ -28,3 +31,6 @@ linglong::util::Error Container::create(const QString& ref)
 
     return NoError();
 }
+
+} // namespace runtime
+} // namespace linglong

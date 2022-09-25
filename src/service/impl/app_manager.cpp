@@ -38,7 +38,7 @@ AppManager::~AppManager()
 
 bool AppManagerPrivate::isAppRunning(const QString &appId, const QString &version, const QString &arch)
 {
-    linglong::package::AppMetaInfoList pkgList;
+    linglong::package::MetaInfoList pkgList;
     if (!appId.isEmpty()) {
         linglong::util::getInstalledAppInfo(appId, version, arch, "", "", "", pkgList);
         if (pkgList.size() > 0) {
@@ -144,7 +144,7 @@ Reply AppManager::Start(const RunParamOption &paramOption)
 
         // 直接运行debug版本时，校验release包是否安装
         if ("devel" == appModule) {
-            linglong::package::AppMetaInfoList pkgList;
+            linglong::package::MetaInfoList pkgList;
             linglong::util::getAllVerAppInfo(appId, version, arch, "", pkgList);
             if (pkgList.size() < 2) {
                 reply.message = appId + ", version:" + version + ", arch:" + arch + ", channel:" + channel
@@ -251,7 +251,7 @@ QueryReply AppManager::List()
     QJsonArray jsonArray;
 
     for (const auto &app : d->apps) {
-        auto c = QPointer<Container>(new Container);
+        auto c = QPointer<runtime::Container>(new runtime::Container);
         c->id = app->container()->id;
         c->pid = app->container()->pid;
         c->packageName = app->container()->packageName;
