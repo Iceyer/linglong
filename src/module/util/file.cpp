@@ -20,6 +20,29 @@
 namespace linglong {
 namespace util {
 
+QString getLinglongRootPath()
+{
+    if (qEnvironmentVariableIsSet("LINGLONG_ROOT")) {
+        return qEnvironmentVariable("LINGLONG_ROOT");
+    }
+
+    auto sysProductVersion = QSysInfo::productVersion().toDouble();
+    if (!isDeepinSysProduct()) {
+        return QString("/var/lib/linglong");
+    }
+
+    // v20系统
+    if (20 <= sysProductVersion && 23 > sysProductVersion) {
+        return QString("/data/linglong");
+    }
+
+    // v23系统
+    if (23 <= sysProductVersion) {
+        return QString("/persistent/linglong");
+    }
+    return QString();
+}
+
 QString jonsPath(const QStringList &component)
 {
     return QDir::toNativeSeparators(component.join(QDir::separator()));
@@ -174,6 +197,56 @@ bool ensureParentDir(const QString &path)
     auto parentPath = QFileInfo(path).path();
     qDebug() << "ensureDir" << parentPath;
     return ensureDir(parentPath);
+}
+
+bool isDeepinSysProduct()
+{
+    auto sysType = QSysInfo::productType();
+    if ("uos" == sysType || "Deepin" == sysType) {
+        return true;
+    }
+    return false;
+}
+
+bool removeDir(const QString &path)
+{
+    // if path is empty, the QDir will remove pwd, we do not except that.
+    if (path.isEmpty()) {
+        return false;
+    }
+
+    QDir dir(path);
+    if (dir.exists()) {
+        return dir.removeRecursively();
+    }
+
+    return true;
+}
+
+void removeDstDirLinkFiles(const QString &src, const QString &dst)
+{
+    if (!dirExists(dst)) {
+        return;
+    }
+
+    QDir srcDir(src);
+
+    QFileInfoList list = srcDir.entryInfoList();
+
+    foreach (QFileInfo info, list) {
+        if (info.fileName() == "." || info.fileName() == "..") {
+            continue;
+        }
+        if (info.isDir()) {
+            // 穿越文件夹，递归调用
+            removeDstDirLinkFiles(info.filePath(), dst + "/" + info.fileName());
+            continue;
+        }
+        // 删除链接文件
+        if (fileExists(QDir(dst).absolutePath() + "/" + info.fileName())) {
+            QFile(QDir(dst).absolutePath() + "/" + info.fileName()).remove();
+        }
+    }
 }
 
 } // namespace util

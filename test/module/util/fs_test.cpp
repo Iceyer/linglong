@@ -15,7 +15,7 @@
 
 #include "src/module/util/file.h"
 
-TEST(Moduel_Util, FS)
+TEST(Util, CreateProxySocket)
 {
     QDir empty("");
     QString value;
@@ -29,7 +29,7 @@ TEST(Moduel_Util, FS)
     EXPECT_EQ(empty.exists(), true);
 }
 
-TEST(mod_util_fs, mod_util_fs)
+TEST(Util, Filesystem)
 {
     // listDirFolders
     bool delete_dir = false;

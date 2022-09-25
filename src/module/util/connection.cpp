@@ -10,8 +10,12 @@
 
 #include "connection.h"
 
+#include "module/util/file.h"
+
 #define DATABASE_TYPE "QSQLITE"
 #define TEST_ON_BORROW_SQL "SELECT 1"
+
+Q_LOGGING_CATEGORY(database, "linglong.database", QtWarningMsg)
 
 QMutex linglong::util::Connection::mutex;
 
@@ -24,11 +28,13 @@ Connection::Connection(QObject *parent)
     , testOnBorrow(true)
     , testOnBorrowSql(TEST_ON_BORROW_SQL)
 {
+    qCDebug(database) << "open databaseName" << databaseName;
 }
 
 Connection::~Connection()
 {
     closeConnection(connection);
+    qCDebug(database) << "close databaseName" << databaseName;
 }
 
 QSqlDatabase Connection::getConnection()
@@ -50,7 +56,7 @@ QSqlDatabase Connection::getConnection()
     } else {
         QSqlQuery query(testOnBorrowSql, connection);
         if (QSqlError::NoError != query.lastError().type()) {
-            qCritical() << "Open datatabase error:" << connection.lastError().text();
+            qCritical() << "open database error:" << connection.lastError().text();
         }
     }
 
@@ -64,7 +70,7 @@ void Connection::closeConnection(QSqlDatabase &connection)
     connection.close();
     connection = QSqlDatabase();
     QSqlDatabase::removeDatabase(connectionName);
-    // qDebug() << "connectionNames:" << QSqlDatabase::connectionNames();
+    qCDebug(database) << "connectionNames:" << QSqlDatabase::connectionNames();
 }
 
 QSqlQuery Connection::execute(const QString &sql)
@@ -74,9 +80,10 @@ QSqlQuery Connection::execute(const QString &sql)
     connection = getConnection();
     QSqlQuery query(sql, connection);
     if (QSqlError::NoError != query.lastError().type()) {
-        qCritical() << "Open datatabase error:" << connection.lastError().text();
+        qCritical() << "open database error:" << connection.lastError().text();
     }
     return query;
 }
+
 } // namespace util
 } // namespace linglong

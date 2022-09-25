@@ -10,8 +10,11 @@
 
 #pragma once
 
+#include "mutex"
+
 #include "module/util/serialize/json.h"
 #include "module/package/package.h"
+
 #include "reply.h"
 #include "param_option.h"
 
@@ -20,17 +23,20 @@ namespace service {
 
 inline void registerAllMetaType()
 {
-    qDBusRegisterMetaType<linglong::service::Reply>();
-    qDBusRegisterMetaType<linglong::service::QueryReply>();
-    qDBusRegisterMetaType<linglong::service::ParamOption>();
-    qDBusRegisterMetaType<linglong::service::DownloadParamOption>();
-    qDBusRegisterMetaType<linglong::service::InstallParamOption>();
-    qDBusRegisterMetaType<linglong::service::QueryParamOption>();
-    qDBusRegisterMetaType<linglong::service::UninstallParamOption>();
-    qDBusRegisterMetaType<QStringMap>();
-    qDBusRegisterMetaType<QVariantMapList>();
-    qDBusRegisterMetaType<linglong::service::RunParamOption>();
-    qDBusRegisterMetaType<linglong::service::ExecParamOption>();
+    static std::once_flag flag;
+    std::call_once(flag, []() {
+        qDBusRegisterMetaType<linglong::service::Reply>();
+        qDBusRegisterMetaType<linglong::service::QueryReply>();
+        qDBusRegisterMetaType<linglong::service::ParamOption>();
+        qDBusRegisterMetaType<linglong::service::DownloadParamOption>();
+        qDBusRegisterMetaType<linglong::service::InstallParamOption>();
+        qDBusRegisterMetaType<linglong::service::QueryParamOption>();
+        qDBusRegisterMetaType<linglong::service::UninstallParamOption>();
+        qDBusRegisterMetaType<QStringMap>();
+        qDBusRegisterMetaType<QVariantMapList>();
+        qDBusRegisterMetaType<linglong::service::RunParamOption>();
+        qDBusRegisterMetaType<linglong::service::ExecParamOption>();
+    });
 }
 
 } // namespace service

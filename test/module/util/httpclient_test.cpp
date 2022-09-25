@@ -15,20 +15,27 @@
 #include "src/module/util/file.h"
 #include "src/module/util/config/config.h"
 
-TEST(httpclient, test01)
+TEST(Util, HttpClient)
 {
+    int argc = 0;
+    char *argv = 0;
+    QCoreApplication app(argc, &argv);
+
     QStringList userInfo = {"linglong", "linglong"};
 
     QString configUrl = ConfigInstance().repos[linglong::kDefaultRepo]->endpoint;
 
-    EXPECT_EQ (true, !configUrl.isEmpty());
+    EXPECT_EQ(true, !configUrl.isEmpty());
 
     auto token = G_HTTPCLIENT->getToken(configUrl, userInfo);
-    EXPECT_EQ (token.size() > 0, true);
+    EXPECT_EQ(token.size() > 0, true);
 
-    QtConcurrent::run([=]() {
+    auto ret = QtConcurrent::run([&]() {
         QString outMsg;
         G_HTTPCLIENT->queryRemoteApp("cal", "", "x86_64", outMsg);
-        EXPECT_EQ (outMsg.size() > 0, true);
+        EXPECT_EQ(outMsg.size() > 0, true);
+        app.exit(0);
     });
+
+    app.exec();
 }

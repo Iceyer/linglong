@@ -91,6 +91,11 @@ QString getDBusCallerUsername(QDBusContext &ctx)
 
 uid_t getDBusCallerUid(QDBusContext &ctx)
 {
+    if (!ctx.connection().interface()) {
+        qCritical() << "can not get peer uid";
+        return -1;
+    }
+
     QDBusReply<uint> dbusReply = ctx.connection().interface()->serviceUid(ctx.message().service());
 
     if (dbusReply.isValid()) {
@@ -516,10 +521,10 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
     latestMetaInfo->kind = "app";
     auto ret = linglong::util::insertAppRecord(latestMetaInfo.get(), "user", userName);
     if (0 != ret) {
+        job->setFinish(-2, QString("insertAppRecord failed"));
         return NewError(ret, "insertAppRecord failed");
     }
     job->setProgress(100, 0, "update database finish");
-
     job->setFinish(0, QString("install %1 success").arg(targetRef.toSpecString()));
     return NoError();
 }

@@ -15,7 +15,7 @@
 
 #include "src/module/util/uuid.h"
 
-TEST(Moduel_Util, uuid)
+TEST(Util, Uuid)
 {
     auto uuid = linglong::util::genUuid();
     EXPECT_EQ(uuid.size() > 0, true);

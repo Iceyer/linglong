@@ -17,16 +17,17 @@
 #include "src/module/package/info.h"
 #include "src/module/util/xdg.h"
 
-TEST(PermissionTest, LoadJson)
+TEST(Package, PermissionUser)
 {
+    linglong::package::registerAllMetaType();
+
     QStringList userTypeList = linglong::util::getXdgUserDir();
 
     EXPECT_NE(userTypeList.size(), 0);
 
-    linglong::package::registerAllMetaType();
-
     QFile jsonFile("../../test/data/demo/info.json");
     jsonFile.open(QIODevice::ReadOnly);
+    EXPECT_EQ(jsonFile.isOpen(), true);
 
     auto json = QJsonDocument::fromJson(jsonFile.readAll());
 
@@ -68,13 +69,14 @@ TEST(PermissionTest, LoadJson)
     info->deleteLater();
 }
 
-TEST(PermissionTest, TestPermission)
+TEST(Package, Permission)
 {
     linglong::package::registerAllMetaType();
 
     // load json file
     QFile jsonFile("../../test/data/demo/info.json");
     jsonFile.open(QIODevice::ReadOnly);
+    EXPECT_EQ(jsonFile.isOpen(), true);
 
     auto json = QJsonDocument::fromJson(jsonFile.readAll());
 

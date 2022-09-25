@@ -38,9 +38,10 @@ runtime:
   source: "linglong/main:org.deepin.Runtime/20.5.0/x86_64/binary"
 )MLS00";
 
-TEST(Serialize, YAML_STRING)
+TEST(Serialize, YamlQString)
 {
     linglong::runtime::registerAllOciMetaType();
+    registerSerializeTestMetaType();
 
     YAML::Node doc = YAML::Load(yamlData);
     auto app = formYaml<TestApp>(doc);
@@ -48,7 +49,7 @@ TEST(Serialize, YAML_STRING)
     EXPECT_EQ(app->package->source, "linglong/main:org.deepin.demo/2.2.32/x86_64/binary");
 }
 
-TEST(Serialize, YAML_NS)
+TEST(Serialize, YamlNamespace)
 {
     registerSerializeTestMetaType();
 
@@ -60,7 +61,7 @@ TEST(Serialize, YAML_NS)
     EXPECT_EQ(app->permissions->mounts.value(0)->type, "test_type");
 }
 
-TEST(Serialize, YAML)
+TEST(Serialize, Yaml)
 {
     linglong::runtime::registerAllOciMetaType();
     registerSerializeTestMetaType();

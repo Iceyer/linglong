@@ -17,7 +17,6 @@
 #include <QMutexLocker>
 
 #include "singleton.h"
-#include "file.h"
 
 #define DATABASE_NAME "linglong.db"
 
@@ -49,3 +48,5 @@ private:
 };
 } // namespace util
 } // namespace linglong
+
+Q_DECLARE_LOGGING_CATEGORY(database)

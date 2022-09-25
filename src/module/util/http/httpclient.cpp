@@ -135,8 +135,8 @@ bool HttpClient::queryRemoteApp(const QString &pkgName, const QString &pkgVer, c
             outMsg = QString::fromUtf8(reply->readAll());
             ret = true;
         } else {
-            qCritical() << reply->errorString();
             outMsg = reply->errorString();
+            qCritical() << outMsg << reply->error();
             reply->abort();
         }
         reply->deleteLater();
@@ -157,7 +157,8 @@ bool HttpClient::queryRemoteApp(const QString &pkgName, const QString &pkgVer, c
  *
  * @return int: kSuccess:成功 kFail:失败
  */
-int HttpClient::uploadFile(const QString &filePath, const QString &dnsOfLinglong, const QString &flags, const QString &token)
+int HttpClient::uploadFile(const QString &filePath, const QString &dnsOfLinglong, const QString &flags,
+                           const QString &token)
 {
     std::string urlStr = QString(dnsOfLinglong + "apps/upload").toStdString();
     const char *url = urlStr.c_str();
@@ -170,11 +171,11 @@ int HttpClient::uploadFile(const QString &filePath, const QString &dnsOfLinglong
 
     struct curl_slist *headers = NULL;
     std::string tokenStr = QString("X-Token: " + token).toStdString();
-    const char * tokenMsg = tokenStr.c_str();
+    const char *tokenMsg = tokenStr.c_str();
 
     headers = curl_slist_append(headers, tokenMsg);
     curl_easy_setopt(curlHandle, CURLOPT_HTTPHEADER, headers);
-    //设置为非0表示本次操作为POST
+    // 设置为非0表示本次操作为POST
     curl_easy_setopt(curlHandle, CURLOPT_POST, 1);
     // --location
     curl_easy_setopt(curlHandle, CURLOPT_FOLLOWLOCATION, 1);
@@ -239,7 +240,7 @@ int HttpClient::pushServerBundleData(const QString &info, const QString &dnsOfLi
     // HTTP报文头
     struct curl_slist *headers = NULL;
     std::string tokenStr = QString("X-Token: " + token).toStdString();
-    const char * tokenMsg = tokenStr.c_str();
+    const char *tokenMsg = tokenStr.c_str();
 
     headers = curl_slist_append(headers, tokenMsg);
     headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -306,7 +307,8 @@ QString HttpClient::getToken(const QString &dnsOfLinglong, QStringList userInfo)
     // --location
     curl_easy_setopt(curlHandle, CURLOPT_FOLLOWLOCATION, 1);
 
-    std::string sendString = "{\"username\":\"" + username.toStdString() + "\",\"password\":\"" + password.toStdString() + "\"}";
+    std::string sendString =
+        "{\"username\":\"" + username.toStdString() + "\",\"password\":\"" + password.toStdString() + "\"}";
 
     // 设置要POST的JSON数据
     curl_easy_setopt(curlHandle, CURLOPT_POSTFIELDS, sendString.c_str());

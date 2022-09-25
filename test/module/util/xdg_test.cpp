@@ -16,7 +16,7 @@
 
 #include "module/util/xdg.h"
 
-TEST(Moduel_Util, Tool)
+TEST(Util, ParseEnvKeyValue)
 {
     QString env = "${HOME}/Desktop:${HOME}/Desktop";
     QRegExp exp("(\\$\\{.*\\})");
@@ -32,7 +32,7 @@ TEST(Moduel_Util, Tool)
     EXPECT_EQ(envs.first.contains("${HOME}"), false);
 }
 
-TEST(Moduel_Util, convertSpecialCharacters)
+TEST(Util, ConvertSpecialCharacters)
 {
     QStringList args1 = {"/home/qwe/Video/test test/test.mp4"};
     QStringList args2 = {"/home/qwe/Video/test/测试 音乐.mp4"};
@@ -50,9 +50,8 @@ TEST(Moduel_Util, convertSpecialCharacters)
     EXPECT_EQ(retExec2.size(), 1);
 }
 
-TEST(Module_Util, Xdg01)
+TEST(Util, QDirXdg)
 {
-
     auto r1 = linglong::util::getXdgDir("Desktop");
     EXPECT_EQ(r1.first, true);
     EXPECT_EQ(r1.second, QDir::homePath() + "/Desktop");
@@ -102,7 +101,7 @@ TEST(Module_Util, Xdg01)
     EXPECT_EQ(r11.second, QStandardPaths::writableLocation(QStandardPaths::HomeLocation) + "/.Public");
 }
 
-TEST(Module_Util, Xdg02)
+TEST(Util, QStandardPathsXdg)
 {
     QString r1 = "XDG_DESKTOP_DIR";
     auto r1XdgPath = linglong::util::getPathInXdgUserConfig(r1);

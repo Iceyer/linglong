@@ -20,7 +20,7 @@ void serializeRegister()
     static std::once_flag flag;
     std::call_once(flag, []() {
         qSerializeRegister<linglong::repo::Pair>();
-        qSerializeRegister<linglong::repo::UploadTaskRequest>();
+        qSerializeRegister<linglong::test::UploadTaskRequest>();
     });
 }
 
@@ -28,7 +28,7 @@ TEST(Serialize, Base)
 {
     serializeRegister();
 
-    linglong::repo::UploadTaskRequest req;
+    linglong::test::UploadTaskRequest req;
     req.objects = QStringList {"test1", "test2"};
     req.refs["refs1"] = QPointer<linglong::repo::Pair>(new linglong::repo::Pair);
     req.refs["refs1"]->first = "f1";
@@ -46,8 +46,8 @@ TEST(Serialize, Base)
 }
 )MLS";
 
-    QScopedPointer<linglong::repo::UploadTaskRequest> newReq(
-        linglong::util::loadJsonBytes<linglong::repo::UploadTaskRequest>(reqJsonBytes));
+    QScopedPointer<linglong::test::UploadTaskRequest> newReq(
+        linglong::util::loadJsonBytes<linglong::test::UploadTaskRequest>(reqJsonBytes));
 
     EXPECT_EQ(newReq->objects.length(), 1);
     EXPECT_EQ(newReq->refs.keys().length(), 1);
@@ -74,8 +74,8 @@ TEST(Serialize, List)
 }
 )MLS";
 
-        QScopedPointer<linglong::repo::UploadTaskRequest> newReq(
-            linglong::util::loadJsonBytes<linglong::repo::UploadTaskRequest>(reqJsonBytes));
+        QScopedPointer<linglong::test::UploadTaskRequest> newReq(
+            linglong::util::loadJsonBytes<linglong::test::UploadTaskRequest>(reqJsonBytes));
 
         EXPECT_EQ(newReq->refList.length(), 2);
         return newReq->refList;

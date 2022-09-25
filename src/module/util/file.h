@@ -111,20 +111,7 @@ bool inline createDir(const QString &path)
  * @param path 绝对路径
  * @return bool
  */
-bool inline removeDir(const QString &path)
-{
-    // if path is empty, the QDir will remove pwd, we do not except that.
-    if (path.isEmpty()) {
-        return false;
-    }
-
-    QDir dir(path);
-    if (dir.exists()) {
-        return dir.removeRecursively();
-    }
-
-    return true;
-}
+bool removeDir(const QString &path);
 
 /*!
  * 获取指定目录下的子目录
@@ -227,66 +214,19 @@ void inline linkDirFiles(const QString &src, const QString &dst)
  * @param dst 目标目录
  * @return
  */
-void inline removeDstDirLinkFiles(const QString &src, const QString &dst)
-{
-    if (!dirExists(dst)) {
-        return;
-    }
-
-    QDir srcDir(src);
-
-    QFileInfoList list = srcDir.entryInfoList();
-
-    foreach (QFileInfo info, list) {
-        if (info.fileName() == "." || info.fileName() == "..") {
-            continue;
-        }
-        if (info.isDir()) {
-            // 穿越文件夹，递归调用
-            removeDstDirLinkFiles(info.filePath(), dst + "/" + info.fileName());
-            continue;
-        }
-        // 删除链接文件
-        if (fileExists(QDir(dst).absolutePath() + "/" + info.fileName())) {
-            QFile(QDir(dst).absolutePath() + "/" + info.fileName()).remove();
-        }
-    }
-}
+void removeDstDirLinkFiles(const QString &src, const QString &dst);
 
 /*!
  * 判断是否是deepin系统或者其发型版
  * @return bool: true:是deepin系统产品
  */
-bool inline isDeepinSysProduct()
-{
-    auto sysType = QSysInfo::productType();
-    if ("uos" == sysType || "Deepin" == sysType) {
-        return true;
-    }
-    return false;
-}
+bool isDeepinSysProduct();
 
 /*!
  * 根据系统版本获取玲珑安装路径
  * @return QString 玲珑安装路径
  */
-QString inline getLinglongRootPath()
-{
-    auto sysProductVersion = QSysInfo::productVersion().toDouble();
-    if (!isDeepinSysProduct()) {
-        return QString("/var/lib/linglong");
-    }
-    // v20系统
-    if (20 <= sysProductVersion && 23 > sysProductVersion) {
-        return QString("/data/linglong");
-    }
-
-    // v23系统
-    if (23 <= sysProductVersion) {
-        return QString("/persistent/linglong");
-    }
-    return QString();
-}
+QString getLinglongRootPath();
 
 } // namespace util
 } // namespace linglong

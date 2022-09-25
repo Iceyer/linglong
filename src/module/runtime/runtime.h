@@ -20,6 +20,8 @@ namespace runtime {
 // TODO: move to runtime.cpp
 inline void registerAllMetaType()
 {
+    registerAllOciMetaType();
+
     static std::once_flag flag;
     std::call_once(flag, []() {
         qSerializeRegister<linglong::runtime::Layer>();

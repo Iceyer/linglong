@@ -62,6 +62,7 @@ public:
         auto json = QJsonDocument::fromJson(jsonFile.readAll());
         jsonFile.close();
         r = fromVariant<Runtime>(json.toVariant());
+        Q_ASSERT(r->root);
         r->setParent(q_ptr);
 
         container = new Container(q_ptr);

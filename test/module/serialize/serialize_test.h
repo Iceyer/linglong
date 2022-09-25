@@ -32,7 +32,7 @@ public:
 Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, Pair)
 
 namespace linglong {
-namespace repo {
+namespace test {
 
 class UploadTaskRequest : public Serialize
 {
@@ -48,4 +48,4 @@ class UploadTaskRequest : public Serialize
 } // namespace repo
 } // namespace linglong
 
-Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::repo, UploadTaskRequest)
+Q_SERIALIZE_DECLARE_TYPE_AND_METATYPE_NM(linglong::test, UploadTaskRequest)

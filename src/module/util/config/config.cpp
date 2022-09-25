@@ -23,6 +23,12 @@ static const char *const kConfigFileName = "config.yaml";
 // TODO: check more path for different distribution
 static const char *const kDefaultConfigFilePath = "/usr/share/linglong/config.yaml";
 
+void registerAllMetatype()
+{
+    qSerializeRegister<linglong::config::Repo>();
+    qSerializeRegister<linglong::config::Config>();
+}
+
 static QString filePath()
 {
     return util::getLinglongRootPath() + "/" + kConfigFileName;
@@ -30,6 +36,9 @@ static QString filePath()
 
 static Config *loadConfig()
 {
+    static std::once_flag flag;
+    std::call_once(flag, []() { linglong::config::registerAllMetatype(); });
+
     auto configFilePath = filePath();
     if (!util::fileExists(configFilePath) && util::fileExists(kDefaultConfigFilePath)) {
         QFile configFile(kDefaultConfigFilePath);
@@ -41,27 +50,20 @@ static Config *loadConfig()
         cfg = formYaml<config::Config>(YAML::LoadFile(filePath().toStdString()));
         return cfg;
     } catch (...) {
-        qWarning() << "load" << filePath() << "failed";
+        qWarning() << "load" << filePath() << "failed" << cfg;
+        cfg = new Config;
+        cfg->onPostSerialize();
     }
 
-    if (!cfg) {
-        cfg = new Config;
-    }
+    Q_ASSERT(cfg);
+    Q_ASSERT(cfg->repos.contains(kDefaultRepo));
 
     return cfg;
-}
-
-void registerAllMetatype()
-{
-    qSerializeRegister<linglong::config::Repo>();
-    qSerializeRegister<linglong::config::Config>();
 }
 
 Config::Config(QObject *parent)
     : Serialize(parent)
 {
-    static std::once_flag flag;
-    std::call_once(flag, []() { registerAllMetatype(); });
 }
 
 void Config::onPostSerialize()

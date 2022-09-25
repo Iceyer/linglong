@@ -15,7 +15,7 @@
 
 #include "src/module/util/runner.h"
 
-TEST(Moduel_Util, runner)
+TEST(Util, Runner)
 {
     auto ret = linglong::runner::Runner("ostree1", {"--repo=/tmp/linglongtest", "init", "--mode=bare-user-only"}, 3000);
     EXPECT_EQ (ret, false);

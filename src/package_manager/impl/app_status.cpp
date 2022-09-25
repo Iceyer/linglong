@@ -185,6 +185,7 @@ int deleteAppRecord(const QString &appId, const QString &appVer, const QString &
 
     Connection connection;
     QSqlQuery sqlQuery = connection.execute(deleteSql);
+    // FIXME: if no data delete, it always NoError, return no exist to user
     if (QSqlError::NoError != sqlQuery.lastError().type()) {
         qCritical() << "execute deleteSql error:" << sqlQuery.lastError().text();
         return STATUS_CODE(kFail);

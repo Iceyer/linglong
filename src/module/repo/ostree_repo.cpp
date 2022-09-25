@@ -31,7 +31,7 @@
 #include "module/util/http/httpclient.h"
 #include "module/util/job/job_controller.h"
 
-Q_LOGGING_CATEGORY(repoProgress, "repo.progress", QtWarningMsg)
+Q_LOGGING_CATEGORY(repoProgress, "linglong.repo.progress", QtWarningMsg)
 
 /*!
  * just support a{sv}, DO NOT parse others with it

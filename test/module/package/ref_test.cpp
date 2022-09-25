@@ -14,7 +14,7 @@
 
 using namespace linglong;
 
-TEST(Moduel_Package, Ref)
+TEST(Package, Ref)
 {
     package::Ref ref("repo/channel:app/1.0/x86");
     EXPECT_EQ(ref.repo, "repo");

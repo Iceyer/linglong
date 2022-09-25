@@ -49,6 +49,7 @@ set(LL_TEST_SOURCES
     ../src/module/package/package.h
     ../src/module/package/ref.cpp
     ../src/module/package/ref.h
+    ../src/module/repo/ostree_repo.cpp
     ../src/module/repo/repo_client.cpp
     ../src/module/repo/repo_client.h
     ../src/module/runtime/container.cpp
@@ -56,14 +57,12 @@ set(LL_TEST_SOURCES
     ../src/module/util/config/config.cpp
     ../src/module/util/config/config.h
     ../src/module/util/connection.cpp
-    ../src/module/util/connection.cpp
     ../src/module/util/desktop_entry.cpp
-    ../src/module/util/desktop_entry.cpp
-    ../src/module/util/file.cpp
     ../src/module/util/file.cpp
     ../src/module/util/http/http_client.cpp
     ../src/module/util/http/http_client.h
     ../src/module/util/http/httpclient.cpp
+    ../src/module/util/job/job.cpp
     ../src/module/util/job/job_controller.cpp
     ../src/module/util/job/job_controller.h
     ../src/module/util/serialize/serialize.h
@@ -72,8 +71,12 @@ set(LL_TEST_SOURCES
     ../src/module/util/xdg.cpp
     ../src/package_manager/impl/app_status.cpp
     ../src/package_manager/impl/appinfo_cache.cpp
+    ../src/package_manager/impl/job_manager.cpp
+    ../src/package_manager/impl/package_database.cpp
+    ../src/package_manager/impl/package_manager.cpp
     ../src/service/impl/param_option.h
     ../src/service/impl/reply.h
+    ../src/cli/cli.cpp
     manager_test.cpp
     module/config/config_test.cpp
     module/config/config_test.cpp
@@ -82,8 +85,6 @@ set(LL_TEST_SOURCES
     module/serialize/qt_json.cpp
     module/serialize/qt_yaml.cpp
     module/serialize/serialize_test.cpp
-    module/serialize/serialize_test.cpp
-    module/serialize/serialize_test.h
     module/serialize/serialize_test.h
     module/util/app_status_test.cpp
     module/util/fs_test.cpp
@@ -92,9 +93,32 @@ set(LL_TEST_SOURCES
     module/util/runner_test.cpp
     module/util/uuid_test.cpp
     module/util/xdg_test.cpp
-    )
+)
 
-# add qdbus call
+qt5_add_dbus_adaptor(
+  LL_TEST_SOURCES
+  ../src/module/dbus_ipc/org.deepin.linglong.PackageManager.xml
+  ../src/package_manager/impl/package_manager.h
+  linglong::package_manager::PackageManager
+  dbus_gen_package_manager_adaptor
+)
+
+qt5_add_dbus_adaptor(
+  LL_TEST_SOURCES
+  ../src/module/dbus_ipc/org.deepin.linglong.JobManager.xml
+  ../src/package_manager/impl/job_manager.h
+  linglong::package_manager::JobManager
+  dbus_gen_job_manager_adaptor
+)
+
+qt5_add_dbus_adaptor(
+  LL_TEST_SOURCES
+  ../src/module/dbus_ipc/org.deepin.linglong.Job.xml
+  ../src/module/util/job/job.h
+  linglong::util::Job
+  dbus_gen_job_adaptor
+)
+
 set_source_files_properties(
   ../src/module/dbus_ipc/org.deepin.linglong.AppManager.xml
   PROPERTIES INCLUDE service/impl/register_meta_type.h

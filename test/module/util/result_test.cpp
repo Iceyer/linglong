@@ -14,7 +14,7 @@
 
 using namespace linglong;
 
-TEST(Moduel_Util, Result)
+TEST(Util, Result)
 {
     auto funcLevel_1 = []() -> util::Error { return NewError() << -1 << "this is level 1 error"; };
 

@@ -93,10 +93,16 @@ int Cli::runJob(std::function<QDBusPendingReply<QString>()> funcCreateJob,
         connect(jobInterface.data(), SIGNAL(Finish(quint32, QString)), this, SLOT(onFinish(quint32, QString)));
         return qApp->exec();
     } else {
-        while (jobInterface.data()->property("State").toUInt() != static_cast<quint32>(util::JobStateFinish)) {
+        while (true) {
             QThread::sleep(1);
+            auto state = jobInterface.data()->property("State").toUInt();
+            qDebug() << state << jobInterface.data()->property("Message").toString();
+            if (static_cast<quint32>(util::JobStateFinish) == state) {
+                break;
+            }
         }
         auto statusCode = jobInterface.data()->property("StatusCode").toUInt();
+        qDebug() << statusCode << jobInterface.data()->property("Message").toString();
         return statusCode;
     }
 }
