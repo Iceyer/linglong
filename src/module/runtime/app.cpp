@@ -92,7 +92,7 @@ public:
 
         stageSystem();
         stageUser(appRef.appId);
-        stageMount();
+        stageMount(appRef.appId);
         stageHost();
         fixMount(runtimeRef.appId, fixRuntimePath, appRef.appId, appRootPath);
 
@@ -171,14 +171,14 @@ public:
 
         qDebug() << "exec" << r->process->args;
 
-        bool noDbusProxy = runParamMap.contains(linglong::util::kKeyNoProxy);
-        if (!linglong::util::fileExists("/usr/bin/ll-dbus-proxy")) {
+        bool noDbusProxy = runParamMap.contains(util::kKeyNoProxy);
+        if (!util::fileExists("/usr/bin/ll-dbus-proxy")) {
             noDbusProxy = true;
             qWarning() << "ll-dbus-proxy not installed";
         }
         QString sessionSocketPath = "";
         if (!noDbusProxy) {
-            sessionSocketPath = linglong::util::createProxySocket("session-bus-proxy-XXXXXX");
+            sessionSocketPath = util::createProxySocket("session-bus-proxy-XXXXXX");
             std::string pathString = sessionSocketPath.toStdString();
             unlink(pathString.c_str());
         }
@@ -274,7 +274,7 @@ public:
         QString basicsUsrRootPath = "";
         // basics etc
         QString basicsEtcRootPath = "";
-        if (!linglong::util::isDeepinSysProduct() && useThinRuntime) {
+        if (!util::isDeepinSysProduct() && useThinRuntime) {
             QScopedPointer<package::Info> runtimeInfo;
             if (util::fileExists(runtimeInfoFile)) {
                 runtimeInfo.reset(util::loadJSON<package::Info>(runtimeInfoFile));
@@ -529,25 +529,25 @@ public:
         if (!enable) {
             return;
         }
-        r->annotations->dbusProxyInfo->busType = runParamMap[linglong::util::kKeyBusType];
+        r->annotations->dbusProxyInfo->busType = runParamMap[util::kKeyBusType];
         r->annotations->dbusProxyInfo->proxyPath = proxyPath;
         // FIX to do load filter from yaml
         // FIX to do 加载用户配置参数（权限管限器上）
         // 添加cli command运行参数
-        if (runParamMap.contains(linglong::util::kKeyFilterName)) {
-            QString name = runParamMap[linglong::util::kKeyFilterName];
+        if (runParamMap.contains(util::kKeyFilterName)) {
+            QString name = runParamMap[util::kKeyFilterName];
             if (!r->annotations->dbusProxyInfo->name.contains(name)) {
                 r->annotations->dbusProxyInfo->name.push_back(name);
             }
         }
-        if (runParamMap.contains(linglong::util::kKeyFilterPath)) {
-            QString path = runParamMap[linglong::util::kKeyFilterPath];
+        if (runParamMap.contains(util::kKeyFilterPath)) {
+            QString path = runParamMap[util::kKeyFilterPath];
             if (!r->annotations->dbusProxyInfo->path.contains(path)) {
                 r->annotations->dbusProxyInfo->path.push_back(path);
             }
         }
-        if (runParamMap.contains(linglong::util::kKeyFilterIface)) {
-            QString interface = runParamMap[linglong::util::kKeyFilterIface];
+        if (runParamMap.contains(util::kKeyFilterIface)) {
+            QString interface = runParamMap[util::kKeyFilterIface];
             if (!r->annotations->dbusProxyInfo->interface.contains(interface)) {
                 r->annotations->dbusProxyInfo->interface.push_back(interface);
             }
@@ -608,7 +608,7 @@ public:
 
         // 处理摄像头挂载问题
         // bind /run/udev    /dev/video*
-        if (linglong::util::dirExists("/run/udev")) {
+        if (util::dirExists("/run/udev")) {
             mountMap.push_back(qMakePair(QString("/run/udev"), QString("/run/udev")));
         }
         auto videoFileList = QDir("/dev").entryList({"video*"}, QDir::System);
@@ -705,7 +705,7 @@ public:
 
         // 处理环境变量
         for (auto key : envMap.keys()) {
-            if (linglong::util::envList.contains(key)) {
+            if (util::envList.contains(key)) {
                 r->process->env.push_back(key + "=" + envMap[key]);
             }
         }
@@ -778,7 +778,7 @@ public:
         return 0;
     }
 
-    int stageMount()
+    int stageMount(const QString &appId)
     {
         Q_Q(const App);
 
@@ -804,7 +804,7 @@ public:
                 if (mount->options.isEmpty()) {
                     m->options = QStringList({"ro", "rbind"});
                 } else {
-                    m->options = mount->options.split(",");
+                    m->options = mount->options;
                 }
 
                 m->source = mount->source;
@@ -819,30 +819,37 @@ public:
             }
         }
 
-        if ((!hasMountTmp) && mountTmp()) {
+        if ((!hasMountTmp) && mountTmp(appId)) {
             qWarning() << "fail to generate /tmp mount";
         }
 
         return 0;
     }
 
-    int mountTmp()
+    int mountTmp(const QString &appId)
     {
+        // /tmp/linglong/${containerId}
         const auto &tmpPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-
-        // /tmp/linglong/{containerId}
         QDir tmp(QDir::cleanPath(tmpPath + QDir::separator() + "linglong" + QDir::separator() + this->container->id));
         if (!tmp.exists()) {
             if (!tmp.mkpath(".")) {
                 return -1;
             }
         }
-        QPointer<Mount> m(new Mount(r));
-        m->type = "bind";
-        m->source = tmp.absolutePath();
-        m->destination = tmpPath;
-        m->options = QStringList({"rbind"});
-        r->mounts.push_back(m);
+
+        QList<QPair<QString, QString>> mountMap = {
+            {tmp.absolutePath(), tmpPath},
+        };
+
+        for (const auto &pair : mountMap) {
+            QPointer<Mount> m(new Mount(r));
+            m->type = "bind";
+            m->source = pair.first;
+            m->destination = pair.second;
+            m->options = QStringList({"rbind"});
+            r->mounts.push_back(m);
+        }
+
         return 0;
     }
 
@@ -855,7 +862,7 @@ public:
         if (QString("com.360.browser-stable") == appId) {
             // FIXME: 需要一个所有用户都有可读可写权限的目录
             QString appDataPath = util::getUserFile(".linglong/" + appId + "/share/appdata");
-            linglong::util::ensureDir(appDataPath);
+            util::ensureDir(appDataPath);
             QPointer<Mount> m(new Mount(r));
             m->type = "bind";
             m->options = QStringList {"rw", "rbind"};
@@ -887,7 +894,7 @@ public:
         }
 
         // 存在 gschemas.compiled,需要挂载进沙箱
-        if (linglong::util::fileExists(sysLinglongInstalltions + "/glib-2.0/schemas/gschemas.compiled")) {
+        if (util::fileExists(sysLinglongInstalltions + "/glib-2.0/schemas/gschemas.compiled")) {
             QPointer<Mount> m(new Mount(r));
             m->type = "bind";
             m->options = QStringList {"rbind"};
@@ -895,19 +902,34 @@ public:
             m->destination = sysLinglongInstalltions + "/glib-2.0/schemas/gschemas.compiled";
             r->mounts.push_back(m);
         }
+
+        // deepin-kwin share data with /tmp/screen-recorder
+        {
+            auto deepinKWinTmpSharePath = "/tmp/screen-recorder";
+            util::ensureDir(deepinKWinTmpSharePath);
+            QPointer<Mount> m(new Mount(r));
+            m->type = "bind";
+            m->options = QStringList {"rbind"};
+            m->source = deepinKWinTmpSharePath;
+            m->destination = deepinKWinTmpSharePath;
+            r->mounts.push_back(m);
+        }
         return 0;
     }
 
     // FIXME: none static
-    static QString loadConfig(linglong::repo::Repo *repo, const QString &appId, const QString &appVersion,
-                              const QString &channel, const QString &module, bool isFlatpakApp = false)
+    static QString loadConfig(repo::Repo *repo, const QString &appId, const QString &appVersion, const QString &channel,
+                              const QString &module, bool isFlatpakApp = false)
     {
         util::ensureUserDir({".linglong", appId});
 
-        auto configPath = linglong::util::getUserFile(QString("%1/%2/app.yaml").arg(".linglong", appId));
+        auto configPath = util::getUserFile(QString("%1/%2/app.yaml").arg(".linglong", appId));
+        // FIXME: need more test to read app.yaml
+        // if (util::fileExists(configPath)) {
+        //   return configPath;
+        // }
 
         // create yaml form info
-        // auto appRoot = LocalRepo::get()->rootOfLatest();
         auto latestAppRef = repo->latestOfRef(appId, appVersion);
         qDebug() << "loadConfig ref:" << latestAppRef.toSpecString();
         auto appInstallRoot = repo->rootOfLayer(latestAppRef);
@@ -915,7 +937,7 @@ public:
 
         auto appInfo = appInstallRoot + "/info.json";
         // 判断是否存在
-        if (!isFlatpakApp && !linglong::util::fileExists(appInfo)) {
+        if (!isFlatpakApp && !util::fileExists(appInfo)) {
             qCritical() << appInfo << " not exist";
             return "";
         }
@@ -940,8 +962,8 @@ public:
         package::Ref runtimeRef(info->runtime);
         // 获取最新版本runtime
         if (runtimeRef.version.split(".").size() != 4) {
-           auto latestRuntimeRef = repo->latestOfRef(runtimeRef.appId, "");
-           runtimeRef.version = latestRuntimeRef.version;
+            auto latestRuntimeRef = repo->latestOfRef(runtimeRef.appId, "");
+            runtimeRef.version = latestRuntimeRef.version;
         }
 
         runtimeRef.channel = channel;
@@ -954,7 +976,6 @@ public:
         };
 
         // TODO: remove to util module as file_template.cpp
-
         // permission load
         QMap<QString, QString> permissionMountsMap;
 
@@ -966,10 +987,10 @@ public:
                                    : nullptr;
 
         if (permissionUserMounts != nullptr) {
-            auto permVariant = toVariant<linglong::package::User>(permissionUserMounts);
+            auto permVariant = toVariant<package::User>(permissionUserMounts);
             auto loadPermissionMap = permVariant.toMap();
             if (!loadPermissionMap.empty()) {
-                QStringList userTypeList = linglong::util::getXdgUserDir();
+                QStringList userTypeList = util::getXdgUserDir();
                 for (const auto &it : loadPermissionMap.keys()) {
                     auto itValue = loadPermissionMap.value(it).toString();
                     if (itValue != "" && (itValue == "r" || itValue == "rw" || itValue == "ro")
@@ -1026,19 +1047,20 @@ public:
     }
 
     bool useFlatpakRuntime = false;
-    QString desktopExec = nullptr;
+
+    QString desktopExec;
     QStringMap envMap;
     QStringMap runParamMap;
 
     Container *container = nullptr;
     Runtime *r = nullptr;
-    App *q_ptr = nullptr;
 
     repo::Repo *repo;
     int sockets[2]; // save file describers of sockets used to communicate with ll-box
 
     const QString sysLinglongInstalltions = util::getLinglongRootPath() + "/entries/share";
 
+    App *q_ptr = nullptr;
     Q_DECLARE_PUBLIC(App);
 };
 
@@ -1048,11 +1070,11 @@ App::App(QObject *parent)
 {
 }
 
-App *App::load(linglong::repo::Repo *repo, const package::Ref &ref, const QString &desktopExec, bool useFlatpakRuntime)
+App *App::load(repo::Repo *repo, const package::Ref &ref, const QString &desktopExec, bool useFlatpakRuntime)
 {
     QString configPath =
         AppPrivate::loadConfig(repo, ref.appId, ref.version, ref.channel, ref.module, useFlatpakRuntime);
-    if (!linglong::util::fileExists(configPath)) {
+    if (!util::fileExists(configPath)) {
         return nullptr;
     }
 

@@ -31,27 +31,17 @@ class Layer : public Serialize
 };
 Q_SERIALIZE_DECLARE_TYPE(Layer);
 
-class MountYaml : public Serialize
-{
-    Q_OBJECT;
-    Q_SERIALIZE_CONSTRUCTOR(MountYaml)
-    Q_SERIALIZE_PROPERTY(QString, type);
-    Q_SERIALIZE_PROPERTY(QString, options);
-    Q_SERIALIZE_PROPERTY(QString, source);
-    Q_SERIALIZE_PROPERTY(QString, destination);
-};
-Q_SERIALIZE_DECLARE_TYPE(MountYaml);
 
 /*!
  * Permission: base for run, you can use full run or let it empty
  */
-class AppPermission : public Serialize
+class Permissions : public Serialize
 {
     Q_OBJECT
-    Q_SERIALIZE_CONSTRUCTOR(AppPermission)
-    Q_SERIALIZE_PROPERTY(linglong::runtime::MountYamlList, mounts);
+    Q_SERIALIZE_CONSTRUCTOR(Permissions)
+    Q_SERIALIZE_PROPERTY(MountList, mounts);
 };
-Q_SERIALIZE_DECLARE_TYPE(AppPermission);
+Q_SERIALIZE_DECLARE_TYPE(Permissions);
 
 class AppPrivate;
 class App : public Serialize
@@ -62,7 +52,7 @@ class App : public Serialize
     Q_SERIALIZE_PTR_PROPERTY(linglong::runtime::Layer, runtime);
 
     // TODO: should config base mount point
-    Q_SERIALIZE_PTR_PROPERTY(linglong::runtime::AppPermission, permissions);
+    Q_SERIALIZE_PTR_PROPERTY(linglong::runtime::Permissions, permissions);
 
 public:
     explicit App(QObject *parent = nullptr);
@@ -74,6 +64,7 @@ public:
     Container *container() const;
 
     int start();
+
     void exec(QString cmd, QString env, QString cwd);
 
     void saveUserEnvList(const QStringList &userEnvList);
@@ -90,6 +81,5 @@ Q_SERIALIZE_DECLARE_TYPE(App);
 } // namespace linglong
 
 Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, Layer)
-Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, MountYaml)
-Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, AppPermission)
+Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, Permissions)
 Q_SERIALIZE_DECLARE_METATYPE_NM(linglong::runtime, App)
