@@ -774,13 +774,13 @@ util::Error OSTreeRepo::pullAll(const package::Ref &ref, bool force)
     Q_D(OSTreeRepo);
     // Fixme: remote name maybe not repo and there should support multiple remote
     auto tmpRef = ref;
-    auto ret = d->ostreeRun({"pull", "repo", "--mirror", tmpRef.toString()});
+    auto ret = d->ostreeRun({"pull", "--mirror", tmpRef.toOSTreeRefString()});
     if (!ret.success()) {
         return NewError(ret);
     }
 
     tmpRef.setModule("devel");
-    ret = d->ostreeRun({"pull", "repo", "--mirror", tmpRef.toString()});
+    ret = d->ostreeRun({"pull", "--mirror", tmpRef.toOSTreeRefString()});
 
     return WrapError(ret);
 }
@@ -817,7 +817,6 @@ util::Error OSTreeRepo::checkout(const package::Ref &ref, const QString &subPath
         args.push_back("--subpath=" + subPath);
     }
     args.append(extraArgs);
-    qDebug() << "checkout" << ref.repo << ref.toOSTreeRefString();
     args.append({ref.toOSTreeRefString(), targetPath});
 
     util::ensureParentDir(targetPath);
@@ -830,9 +829,11 @@ util::Error OSTreeRepo::checkoutAll(const package::Ref &ref, const QString &subP
     Q_D(OSTreeRepo);
 
     auto tmpRef = ref;
-    QStringList runtimeArgs = {"checkout", "--union", tmpRef.toString(), target};
+    tmpRef.setModule("runtime");
+    QStringList runtimeArgs = {"checkout", "--union", tmpRef.toOSTreeRefLocalString(), target};
+
     tmpRef.setModule("devel");
-    QStringList develArgs = {"checkout", "--union", tmpRef.toString(), target};
+    QStringList develArgs = {"checkout", "--union", tmpRef.toOSTreeRefLocalString(), target};
 
     if (!subPath.isEmpty()) {
         runtimeArgs.push_back("--subpath=" + subPath);
@@ -866,7 +867,7 @@ QString OSTreeRepo::rootOfLayer(const package::Ref &ref)
 bool OSTreeRepo::isRefExists(const package::Ref &ref)
 {
     Q_D(OSTreeRepo);
-    auto runtimeRef = ref.toString() + '/' + "runtime";
+    auto runtimeRef = ref.toOSTreeRefString();
     auto ret = runner::Runner(
         "sh", {"-c", QString("ostree refs --repo=%1 | grep -Fx %2").arg(d->ostreePath).arg(runtimeRef)}, -1);
 

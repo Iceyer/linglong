@@ -111,11 +111,6 @@ QString Ref::toOSTreeRefString() const
     auto fixRepo = repo;
     fixRepo = "repo";
 
-    if (repo.isEmpty() && channel.isEmpty()) {
-        // {id}/{version}/{arch}/{module}
-        return QString("%1/%2/%3/%4").arg(appId, version, arch, fixModule);
-    }
-
     if (repo.isEmpty()) {
         // {channel}/{id}/{version}/{arch}/{module}
         return QString("%1/%2/%3/%4/%5").arg(channel, appId, version, arch, fixModule);
@@ -128,6 +123,12 @@ QString Ref::toOSTreeRefString() const
 QString Ref::toOSTreeRefLocalString() const
 {
     auto fixModule = module;
+
+    if (channel.isEmpty()) {
+        // {id}/{version}/{arch}/{module}
+        return QString("%1/%2/%3/%4").arg(appId, version, arch, fixModule);
+    }
+
     return QString("%1/%2/%3/%4/%5").arg(channel, appId, version, arch, fixModule);
 }
 
