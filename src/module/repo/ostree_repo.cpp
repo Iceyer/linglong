@@ -817,7 +817,7 @@ util::Error OSTreeRepo::checkout(const package::Ref &ref, const QString &subPath
         args.push_back("--subpath=" + subPath);
     }
     args.append(extraArgs);
-    args.append({ref.toOSTreeRefString(), targetPath});
+    args.append({ref.toOSTreeRefLocalString(), targetPath});
 
     util::ensureParentDir(targetPath);
 

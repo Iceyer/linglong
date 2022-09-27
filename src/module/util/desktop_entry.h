@@ -31,6 +31,8 @@ public:
     QString rawValue(const QString &key, const QString &section = SectionDesktopEntry,
                      const QString &defaultValue = QString());
 
+    QStringList sections();
+
     util::Error save(const QString &filepath);
 
 private:
