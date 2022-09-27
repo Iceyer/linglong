@@ -172,7 +172,7 @@ Reply AppManager::Start(const RunParamOption &paramOption)
         // 判断是否是正在运行应用
         auto latestAppRef = d->repo.latestOfRef(appId, version);
         for (const auto &app : d->apps) {
-            if (latestAppRef.toString() == app->container()->packageName) {
+            if (latestAppRef.toSpecString() == app->container()->packageName) {
                 app->exec(desktopExec, "", "");
                 return;
             }
