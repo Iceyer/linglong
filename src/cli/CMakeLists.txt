@@ -33,8 +33,8 @@ set(LL_CLI_SOURCES
     ../package_manager/impl/app_status.cpp
     ../package_manager/impl/job_manager.cpp
     ../service/impl/app_manager.cpp
-    ../service/impl/param_option.h
-    ../service/impl/reply.h
+    ../module/dbus_ipc/param_option.h
+    ../module/dbus_ipc/reply.h
     ../service/resource/resource.qrc
     cli.cpp
     cli.h
@@ -44,7 +44,7 @@ set(LL_CLI_SOURCES
 
 set_source_files_properties(
   ../module/dbus_ipc/org.deepin.linglong.AppManager.xml
-  PROPERTIES INCLUDE service/impl/register_meta_type.h
+  PROPERTIES INCLUDE module/dbus_ipc/register_meta_type.h
 )
 
 qt5_add_dbus_interface(
@@ -55,7 +55,7 @@ qt5_add_dbus_interface(
 
 set_source_files_properties(
   ../module/dbus_ipc/org.deepin.linglong.PackageManager.xml
-  PROPERTIES INCLUDE service/impl/register_meta_type.h
+  PROPERTIES INCLUDE module/dbus_ipc/register_meta_type.h
 )
 
 qt5_add_dbus_interface(

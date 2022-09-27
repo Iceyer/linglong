@@ -345,6 +345,56 @@ void PackageManagerPrivate::delAppConfig(const QString &appId, const QString &ve
     }
 }
 
+std::tuple<util::Error, QVariantMapList> PackageManagerPrivate::query(const package::Ref &ref, bool noCache)
+{
+    qDebug() << "query" << ref.toSpecString() << "noCache:" << noCache;
+    QString appId = ref.appId;
+    bool ret = false;
+    bool fromServer = false;
+    QueryReply reply;
+    package::MetaInfoList pkgList;
+    QString arch = util::hostArch();
+    QVariantMapList packages;
+    QString appData = "";
+
+    int status = STATUS_CODE(kFail);
+    if (!noCache) {
+        status = linglong::util::queryLocalCache(appId, appData);
+    }
+    // 缓存查不到从服务器查
+    if (status != STATUS_CODE(kSuccess)) {
+        qDebug() << "getAppInfoFromServer" << appId << arch;
+        ret = getAppInfoFromServer(appId, "", arch, appData, reply.message);
+        if (!ret) {
+            reply.code = STATUS_CODE(kErrorPkgQueryFailed);
+            qCritical() << "getAppInfoFromServer failed" << reply.message;
+            return {NewError(reply.code, reply.message), packages};
+        }
+        fromServer = true;
+    }
+    QJsonValue jsonValue;
+    ret = getAppJsonArray(appData, jsonValue, reply.message);
+    if (!ret) {
+        reply.code = STATUS_CODE(kErrorPkgQueryFailed);
+        qCritical() << reply.message;
+        return {NewError(reply.code, reply.message), packages};
+    }
+    // 若从服务器查询得到正确的数据则更新缓存
+    if (fromServer) {
+        linglong::util::updateCache(appId, appData);
+    }
+
+    auto jsonDoc = QJsonDocument(jsonValue.toArray());
+    auto packageList = jsonDoc.toVariant().toList();
+    for (auto const &package : packageList) {
+        packages.push_back(package.toMap());
+    }
+
+    reply.message = "query " + appId + " success";
+
+    return {NewError(0, reply.message), packages};
+}
+
 /*!
  * install progress from 0 to 100;
  *  stage: install package: 20 or 50 or 90, if now need install runtime, take 80 of the hole progress
@@ -717,64 +767,6 @@ QList<package::Ref> PackageManagerPrivate::findRefsToUninstall(const package::Re
     return refs;
 }
 
-/*
- * 查询软件包
- *
- * @param paramOption 查询命令参数
- *
- * @return QueryReply dbus方法调用应答
- */
-QueryReply PackageManagerPrivate::Query(const QueryParamOption &paramOption)
-{
-    QueryReply reply;
-    QString appId = paramOption.appId.trimmed();
-    bool ret = false;
-    if ("installed" == appId) {
-        ret = linglong::util::queryAllInstalledApp("", reply.result, reply.message);
-        if (ret) {
-            reply.code = STATUS_CODE(kErrorPkgQuerySuccess);
-            reply.message = "query " + appId + " success";
-        } else {
-            reply.code = STATUS_CODE(kErrorPkgQueryFailed);
-        }
-        return reply;
-    }
-    linglong::package::MetaInfoList pkgList;
-    QString arch = linglong::util::hostArch();
-    QString appData = "";
-    int status = STATUS_CODE(kFail);
-    if (!paramOption.force) {
-        status = linglong::util::queryLocalCache(appId, appData);
-    }
-    bool fromServer = false;
-    // 缓存查不到从服务器查
-    if (status != STATUS_CODE(kSuccess)) {
-        ret = getAppInfoFromServer(appId, "", arch, appData, reply.message);
-        if (!ret) {
-            reply.code = STATUS_CODE(kErrorPkgQueryFailed);
-            qCritical() << reply.message;
-            return reply;
-        }
-        fromServer = true;
-    }
-    QJsonValue jsonValue;
-    ret = getAppJsonArray(appData, jsonValue, reply.message);
-    if (!ret) {
-        reply.code = STATUS_CODE(kErrorPkgQueryFailed);
-        qCritical() << reply.message;
-        return reply;
-    }
-    // 若从服务器查询得到正确的数据则更新缓存
-    if (fromServer) {
-        linglong::util::updateCache(appId, appData);
-    }
-    QJsonDocument document = QJsonDocument(jsonValue.toArray());
-    reply.code = STATUS_CODE(kErrorPkgQuerySuccess);
-    reply.message = "query " + appId + " success";
-    reply.result = QString(document.toJson());
-    return reply;
-}
-
 PackageManager::PackageManager()
     : dd_ptr(new PackageManagerPrivate(this))
 {
@@ -820,8 +812,9 @@ Reply PackageManager::ModifyRepo(const QString &url)
         dstUrl = url + "/repo";
     }
 
-    // ostree config --repo=/persistent/linglong/repo set "remote \"repo\".url" https://repo-dev.linglong.space/repo/
-    // ostree config 文件中节名有""，QSettings 会自动转义，不用 QSettings 直接修改 ostree config 文件
+    // ostree config --repo=/persistent/linglong/repo set "remote \"repo\".url"
+    // https://repo-dev.linglong.space/repo/ ostree config 文件中节名有""，QSettings 会自动转义，不用 QSettings
+    // 直接修改 ostree config 文件
     auto ret = runner::Runner("ostree",
                               {"config", "--repo=" + d->kLocalRepoPath + "/repo", "set", "remote \"repo\".url", dstUrl},
                               1000 * 60 * 5);
@@ -880,20 +873,6 @@ QString PackageManager::Uninstall(const QString &ref, const QVariantMap &options
     return "";
 }
 
-QueryReply PackageManager::Query(const QueryParamOption &paramOption)
-{
-    Q_D(PackageManager);
-    QueryReply reply;
-    QString appId = paramOption.appId.trimmed();
-    if (appId.isEmpty()) {
-        reply.code = STATUS_CODE(kUserInputParamErr);
-        reply.message = "appId input err";
-        qCritical() << reply.message;
-        return reply;
-    }
-    return d->Query(paramOption);
-}
-
 QVariantMap PackageManager::Show(const QString &ref, const QVariantMap &options)
 {
     sendErrorReply(QDBusError::NotSupported, "");
@@ -917,6 +896,22 @@ QVariantMapList PackageManager::List(const QVariantMap &options)
     for (auto const &package : packageList) {
         packages.push_back(package.toMap());
     }
+    return packages;
+}
+
+QVariantMapList PackageManager::Query(const QString &ref, const QVariantMap &options)
+{
+    Q_D(PackageManager);
+
+    QVariantMapList packages;
+    util::Error err;
+
+    std::tie(err, packages) = d->query(package::Ref(ref), options[kOptNoCacheKey].toBool());
+    if (!err.success()) {
+        sendErrorReply(dbusErrorName(err.code()), err.message());
+    }
+
+    qDebug() << packages;
     return packages;
 }
 

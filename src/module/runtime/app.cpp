@@ -26,7 +26,7 @@
 #include "module/util/file.h"
 #include "module/util/xdg.h"
 #include "module/util/desktop_entry.h"
-#include "module/util/package_manager_param.h"
+#include "module/dbus_ipc/package_manager_param.h"
 #include "module/package/info.h"
 #include "module/repo/repo.h"
 #include "module/flatpak/flatpak_manager.h"
@@ -1215,6 +1215,7 @@ void App::setAppParamMap(const QStringMap &paramMap)
     Q_D(App);
     d->runParamMap = paramMap;
 }
+
 App::~App() = default;
 
 } // namespace runtime

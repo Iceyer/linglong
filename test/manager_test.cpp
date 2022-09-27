@@ -23,9 +23,9 @@
 #include "module/repo/repo.h"
 #include "package_manager/impl/app_status.h"
 #include "package_manager/impl/package_manager.h"
-#include "service/impl/register_meta_type.h"
-#include "service/impl/param_option.h"
-#include "service/impl/reply.h"
+#include "module/dbus_ipc/register_meta_type.h"
+#include "module/dbus_ipc/param_option.h"
+#include "module/dbus_ipc/reply.h"
 
 #include "dbus_gen_app_manager_interface.h"
 #include "dbus_gen_package_manager_interface.h"

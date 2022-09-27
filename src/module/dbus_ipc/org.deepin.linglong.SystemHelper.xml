@@ -1,24 +1,24 @@
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
-        "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+        "https://specifications.freedesktop.org/dbus/introspect-latest.dtd">
 <node>
     <!-- Private interface of linglong, DO NOT CALL IT  -->
     <interface name="org.deepin.linglong.SystemHelper">
         <method name="RebuildInstallPortal">
-            <arg name="installPath" type="s" direction="in"/>
-            <arg name="refs" type="s" direction="in"/>
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="installPath" type="s"/>
+            <arg name="refs" type="s"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap"/>
         </method>
         <method name="RuinInstallPortal">
-            <arg name="installPath" type="s" direction="in"/>
-            <arg name="refs" type="s" direction="in"/>
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="installPath" type="s"/>
+            <arg name="refs" type="s"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap"/>
         </method>
         <method name="DeletePackageUserData">
-            <arg name="uid" type="t" direction="in"/>
-            <arg name="refs" type="s" direction="in"/>
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="uid" type="t"/>
+            <arg name="refs" type="s"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In2" value="QVariantMap"/>
         </method>
     </interface>

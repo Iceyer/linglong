@@ -13,7 +13,7 @@
 #include "module/repo/repo_client.h"
 #include "module/util/job/job_controller.h"
 #include "module/util/http/httpclient.h"
-#include "module/util/package_manager_param.h"
+#include "module/dbus_ipc/package_manager_param.h"
 #include "module/util/sysinfo.h"
 #include "dbus_gen_system_helper_interface.h"
 #include "package_database.h"
@@ -30,6 +30,7 @@ public:
     ~PackageManagerPrivate() override = default;
 
 public:
+    std::tuple<util::Error, QVariantMapList> query(const package::Ref &ref, bool noCache);
     util::Error install(const package::Ref &ref, util::Job *job);
     util::Error update(const package::Ref &ref, util::Job *job);
     util::Error uninstall(uid_t uid, const package::Ref &ref, const QVariantMap &options);
@@ -46,8 +47,6 @@ public:
 
     util::Error exportFiles(const package::Ref &ref);
     util::Error prunePackageFiles(const package::Ref &ref);
-
-    QueryReply Query(const QueryParamOption &paramOption);
 
     /*
      * 从json字符串中提取软件包对应的JsonArray数据

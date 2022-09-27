@@ -1,23 +1,42 @@
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
-        "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+        "https://specifications.freedesktop.org/dbus/introspect-latest.dtd">
 <node>
     <interface name="org.deepin.linglong.Job">
+<!--
+Progress: u32, 0~100, the progress of install/update/uninstall/query job
+-->
         <property name="Progress" type="u" access="read"/>
+<!--
+Rate: u64, download speed in bytes
+-->
         <property name="Rate" type="t" access="read"/>
+<!--
+AverageRate: u64, average download speed in bytes
+-->
         <property name="AverageRate" type="t" access="read"/>
+<!--
+Remaining: u64, second to job finish
+-->
         <property name="Remaining" type="x" access="read"/>
+<!--
+Message: string, status of current job status
+-->
         <property name="Message" type="s" access="read"/>
-        <!-- Status
-        JobStateRunning = 0x0001,
-        JobStatePause   = 0x0002,
-        JobStateFinish  = 0x0003,
-        -->
+<!-- State: u32, the state of job with blow values:
+JobStateRunning = 0x0001,
+JobStatePause   = 0x0002,
+JobStateFinish  = 0x0003,
+-->
         <property name="State" type="u" access="read"/>
-        <!-- Status
-        0: success,
-        Other: failed,
-        -->
+<!-- StatusCode: u32, return error code if job not success
+zero: success
+other: failed
+-->
         <property name="StatusCode" type="u" access="read"/>
+<!-- ProgressChanged: send when job status update, the arg is same with property 
+zero: success
+other: failed
+-->
         <signal name="ProgressChanged">
             <arg name="Progress" type="u" direction="out"/>
             <arg name="Rate" type="t" direction="out"/>
@@ -25,6 +44,10 @@
             <arg name="Remaining" type="x" direction="out"/>
             <arg name="Message" type="s" direction="out"/>
         </signal>
+<!-- Finish: send when job end, send the signal, When receive finish signal, the State MUST be JobStateFinish.
+zero: success
+other: failed
+-->
         <signal name="Finish">
             <arg name="StatusCode" type="u" direction="out"/>
             <arg name="Message" type="s" direction="out"/>

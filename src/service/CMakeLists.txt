@@ -44,8 +44,8 @@ set(LL_SERVICE_SOURCES
     ../package_manager/impl/app_status.cpp
     ../package_manager/impl/appinfo_cache.cpp
     impl/app_manager.cpp
-    impl/param_option.h
-    impl/reply.h
+    ../module/dbus_ipc/param_option.h
+    ../module/dbus_ipc/reply.h
     main.cpp
     resource/resource.qrc
 )

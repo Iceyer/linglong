@@ -1,46 +1,105 @@
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
-        "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+        "https://specifications.freedesktop.org/dbus/introspect-latest.dtd">
 <node>
     <interface name="org.deepin.linglong.PackageManager">
+        <!--
+install a package with ref.
+ref: linglong/main:org.deepin.demo/1.0.0.1/x86_64/binary
+options: not support now
+
+jobPath: install take a long time, receive job progress from job path.
+see org.deepin.linglong.Job for details.
+
+If jobPath is empty, it means the job is sync, get result from dbus replay direct.
+        -->
         <method name="Install">
-            <arg name="ref" type="s" direction="in"/>
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="ref" type="s"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
             <arg name="jobPath" type="s" direction="out"/>
         </method>
+        <!--
+update a package with ref to the latest version
+ref: linglong/main:org.deepin.demo/1.0.0.1/x86_64/binary
+the version/arch/module was ignored, just update exist package.
+options: not support now
+
+jobPath: see Install.
+        -->
         <method name="Update">
-            <arg name="ref" type="s" direction="in"/>
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="ref" type="s"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
             <arg name="jobPath" type="s" direction="out"/>
         </method>
+        <!--
+uninstall a package with ref.
+ref: linglong/main:org.deepin.demo/1.0.0.1/x86_64/binary
+
+you can use glob for version/arch/module when uninstall package,
+ now support * for version. for example:
+
+remove all version with: org.deepin.demo/*
+remove all arch with: org.deepin.demo/1.0.0.1/*
+remove all module with: org.deepin.demo/1.0.0.1/x86_64/*
+
+if no version/arch/module set, it default was *.
+
+the match rule only work for uninstall.
+
+options:
+  DeleteUserData: bool, remove user data after uninstall app
+  DeleteAppData: bool, remove app data after uninstall app
+
+jobPath: see Install.
+        -->
         <method name="Uninstall">
-            <arg name="ref" type="s" direction="in"/>
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="ref" type="s"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
             <arg name="jobPath" type="s" direction="out"/>
         </method>
+        <!--
+show detail info of a package
+ref: linglong/main:org.deepin.demo/1.0.0.1/x86_64/binary
+options: not support now.
+packageMeta: the meta of single package.
+        -->
         <method name="Show">
-            <arg name="ref" type="s" direction="in"/>
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="ref" type="s"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
             <arg name="packageMeta" type="a{sv}" direction="out"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMap"/>
         </method>
+        <!--
+list info of a package
+options: not support now.
+packageMetaList: list of package meta.
+        -->
         <method name="List">
-            <arg name="options" type="a{sv}" direction="in"/>
+            <arg name="options" type="a{sv}"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="QVariantMap"/>
-            <arg name="packageMeta" type="a{a{sv}}" direction="out"/>
+            <arg name="packageMetaList" type="a{a{sv}}" direction="out"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMapList"/>
         </method>
+        <!--
+query package meta info from remote repo
+ref: linglong/main:org.deepin.demo/1.0.0.1/x86_64/binary
+note: only package id is support for query now.
+options:
+  NoCache: bool, DO NOT use local query cache.
+jobPath: see Install.
+        -->
         <method name="Query">
-            <arg name="paramOption" type="(sssssbs)" direction="in"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.In0" value="linglong::service::QueryParamOption"/>
-            <arg type="(iss)" direction="out"/>
-            <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="linglong::service::QueryReply"/>
+            <arg name="ref" type="s"/>
+            <arg name="options" type="a{sv}"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName.In1" value="QVariantMap"/>
+            <arg name="packageMetaList" type="a{a{sv}}" direction="out"/>
+            <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMapList"/>
         </method>
         <method name="ModifyRepo">
-            <arg name="url" type="s" direction="in"/>
+            <arg name="url" type="s"/>
             <arg type="(is)" direction="out"/>
             <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="linglong::service::Reply"/>
         </method>

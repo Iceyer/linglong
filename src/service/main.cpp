@@ -17,7 +17,7 @@
 #include "module/runtime/runtime.h"
 #include "module/util/log/log_handler.h"
 
-#include "impl/register_meta_type.h"
+#include "module/dbus_ipc/register_meta_type.h"
 
 int main(int argc, char *argv[])
 {

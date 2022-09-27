@@ -15,6 +15,8 @@
 #include <QDBusError>
 #include <QDBusConnection>
 
+#include "dbus_error.h"
+
 typedef QList<QVariantMap> QVariantMapList;
 
 Q_DECLARE_METATYPE(QVariantMapList);
@@ -51,4 +53,5 @@ inline bool registerServiceAndObject(QDBusConnection *dbus, const QString &servi
 }
 
 } // namespace linglong
+
 #endif // LINGLONG_SRC_MODULE_DBUS_IPC_DBUS_COMMON_H_

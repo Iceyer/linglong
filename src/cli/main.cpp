@@ -19,7 +19,7 @@
 
 #include "module/package/package.h"
 #include "module/util/job/job_controller.h"
-#include "module/util/package_manager_param.h"
+#include "module/dbus_ipc/package_manager_param.h"
 #include "module/dbus_ipc/dbus_app_manager_common.h"
 #include "module/dbus_ipc/dbus_package_manager_common.h"
 #include "module/runtime/runtime.h"
@@ -27,7 +27,7 @@
 #include "module/util/env.h"
 #include "module/util/log/log_handler.h"
 #include "module/util/sysinfo.h"
-#include "service/impl/register_meta_type.h"
+#include "module/dbus_ipc/register_meta_type.h"
 #include "service/impl/app_manager.h"
 
 #include "cmd/command_helper.h"
@@ -577,20 +577,26 @@ int main(int argc, char **argv)
              auto optNoCache = QCommandLineOption("force", "Query from server directly, not from cache", "");
              package::Ref ref = parseRefArguments(parser, {optNoCache}, [](package::Ref &) {});
 
-             linglong::service::QueryParamOption paramOption;
-             paramOption.appId = args.value(1).trimmed();
-             if (paramOption.appId.isEmpty()) {
+             auto refStr = args.value(1).trimmed();
+             if (refStr.isEmpty()) {
                  parser.showHelp(-1);
                  return -1;
              }
-             paramOption.force = parser.isSet(optNoCache);
-             paramOption.appId = args.value(1);
+             auto noCache = parser.isSet(optNoCache);
+             QVariantMap options = {
+                 {kOptNoCacheKey, noCache},
+             };
 
-             QDBusPendingReply<linglong::service::QueryReply> dbusReply = packageManager.Query(paramOption);
+             QDBusPendingReply<QVariantMapList> dbusReply = packageManager.Query(refStr, options);
              dbusReply.waitForFinished();
-             linglong::service::QueryReply reply = dbusReply.value();
-             auto appMetaInfoList = util::arrayFromJson<package::MetaInfoList>(reply.result);
-             printAppInfo(appMetaInfoList);
+
+             if (dbusReply.isError()) {
+                 qCritical() << dbusReply.error();
+                 return dbusReply.error().type();
+             }
+
+             auto list = fromVariantList<package::MetaInfoList>(toVariant(dbusReply.value()));
+             printAppInfo(list);
              return 0;
          }},
         {"uninstall", // 卸载玲珑包

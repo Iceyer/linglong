@@ -45,7 +45,7 @@ set(LL_SYSTEM_SERVICE_SOURCES
     ../module/util/sysinfo.cpp
     ../module/util/uuid.cpp
     ../module/util/xdg.cpp
-    ../service/impl/param_option.h
+    ../module/dbus_ipc/param_option.h
     impl/app_status.cpp
     impl/appinfo_cache.cpp
     impl/job_manager.cpp

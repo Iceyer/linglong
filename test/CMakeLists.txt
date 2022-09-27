@@ -74,8 +74,8 @@ set(LL_TEST_SOURCES
     ../src/package_manager/impl/job_manager.cpp
     ../src/package_manager/impl/package_database.cpp
     ../src/package_manager/impl/package_manager.cpp
-    ../src/service/impl/param_option.h
-    ../src/service/impl/reply.h
+    ../src/module/dbus_ipc/param_option.h
+    ../src/module/dbus_ipc/reply.h
     ../src/cli/cli.cpp
     manager_test.cpp
     module/config/config_test.cpp
@@ -121,7 +121,7 @@ qt5_add_dbus_adaptor(
 
 set_source_files_properties(
   ../src/module/dbus_ipc/org.deepin.linglong.AppManager.xml
-  PROPERTIES INCLUDE service/impl/register_meta_type.h
+  PROPERTIES INCLUDE module/dbus_ipc/register_meta_type.h
 )
 
 qt5_add_dbus_interface(
@@ -132,7 +132,7 @@ qt5_add_dbus_interface(
 
 set_source_files_properties(
   ../src/module/dbus_ipc/org.deepin.linglong.PackageManager.xml
-  PROPERTIES INCLUDE service/impl/register_meta_type.h
+  PROPERTIES INCLUDE module/dbus_ipc/register_meta_type.h
 )
 
 qt5_add_dbus_interface(
