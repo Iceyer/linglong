@@ -33,34 +33,17 @@
 #include "cmd/command_helper.h"
 #include "cli.h"
 
+using namespace linglong;
+
+static qint64 appManagerPID = -1;
+static qint64 systemHelperPID = -1;
+static qint64 packageManagerPID = -1;
+
 static void qSerializeRegisterAll()
 {
     linglong::package::registerAllMetaType();
     linglong::runtime::registerAllMetaType();
     linglong::service::registerAllMetaType();
-}
-
-/**
- * @brief 输出 flatpak 命令的查询结果
- *
- * @param appMetaInfoList 软件包元信息列表
- *
- */
-void printFlatpakAppInfo(linglong::package::MetaInfoList appMetaInfoList)
-{
-    if (appMetaInfoList.size() > 0) {
-        if ("flatpaklist" == appMetaInfoList.at(0)->appId) {
-            qInfo("%-48s%-16s%-16s%-12s%-12s%-12s%-12s", "Description", "Application", "Version", "Branch", "Arch",
-                  "Origin", "Installation");
-        } else {
-            qInfo("%-72s%-16s%-16s%-12s%-12s", "Description", "Application", "Version", "Branch", "Remotes");
-        }
-        QString ret = appMetaInfoList.at(0)->description;
-        QStringList strList = ret.split(QRegExp("[\r\n]"), QString::SkipEmptyParts);
-        for (int i = 0; i < strList.size(); ++i) {
-            qInfo().noquote() << strList[i].simplified();
-        }
-    }
 }
 
 /**
@@ -81,19 +64,6 @@ int getUnicodeNum(const QString &name)
         }
     }
     return num;
-}
-
-/**
- * @brief 处理安装中断请求
- *
- * @param sig 中断信号
- */
-void doIntOperate(int sig)
-{
-    // 显示光标
-    std::cout << "\033[?25h" << std::endl;
-    // Fix to 调用 jobManager 中止下载安装操作
-    exit(0);
 }
 
 /**
@@ -197,6 +167,7 @@ only package id required，use this for short:
 
     if (args.size() != 2) {
         parser.showHelp(-1);
+        return linglong::package::Ref("");
     }
 
     auto argRef = args.at(1);
@@ -207,10 +178,6 @@ only package id required，use this for short:
 
     return ref;
 }
-
-static qint64 appManagerPID = -1;
-static qint64 systemHelperPID = -1;
-static qint64 packageManagerPID = -1;
 
 void handleOnExit(int, void *)
 {
@@ -224,8 +191,6 @@ void handleOnExit(int, void *)
         kill(packageManagerPID, SIGTERM);
     }
 }
-
-using namespace linglong;
 
 int main(int argc, char **argv)
 {
@@ -624,14 +589,8 @@ int main(int argc, char **argv)
              QDBusPendingReply<linglong::service::QueryReply> dbusReply = packageManager.Query(paramOption);
              dbusReply.waitForFinished();
              linglong::service::QueryReply reply = dbusReply.value();
-
              auto appMetaInfoList = util::arrayFromJson<package::MetaInfoList>(reply.result);
-
-             if (1 == appMetaInfoList.size() && "flatpakquery" == appMetaInfoList.at(0)->appId) {
-                 printFlatpakAppInfo(appMetaInfoList);
-             } else {
-                 printAppInfo(appMetaInfoList);
-             }
+             printAppInfo(appMetaInfoList);
              return 0;
          }},
         {"uninstall", // 卸载玲珑包
