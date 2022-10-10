@@ -147,8 +147,8 @@ util::Error commitBuildOutput(Project *project, AnnotationsOverlayfsRootfs *over
     };
 
     // Move some directories in files/share to entries
-    // directories like icons, mime, dbus-1, locale
-    auto moveStatus = moveDir({"icons", "mime", "dbus-1", "locale", "autostart"},
+    // directories like icons, mime, dbus-1, locale, deepin-manual
+    auto moveStatus = moveDir({"icons", "mime", "dbus-1", "locale", "autostart", "deepin-manual"},
                               project->config().cacheInstallPath("files/share"), entriesPath);
     if (!moveStatus.success()) {
         kill(fuseOverlayfsPid, SIGTERM);
