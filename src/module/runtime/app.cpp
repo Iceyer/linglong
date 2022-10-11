@@ -920,6 +920,22 @@ public:
             m->destination = deepinKWinTmpSharePath;
             r->mounts.push_back(m);
         }
+
+        // Fixme: deepin-manual share data, should be removed later
+        {
+            auto deepinManualFilePath =
+                QStringList {util::getLinglongRootPath(), "entries/share/deepin-manual"}.join(QDir::separator());
+
+            if (util::dirExists(deepinManualFilePath)) {
+                QPointer<Mount> m(new Mount(r));
+                m->type = "bind";
+                m->options = QStringList {"rbind"};
+                m->source = deepinManualFilePath;
+                m->destination = deepinManualFilePath;
+                r->mounts.push_back(m);
+            }
+        }
+
         return 0;
     }
 
