@@ -406,7 +406,8 @@ std::tuple<util::Error, QVariantMapList> PackageManagerPrivate::query(const pack
  * @param job
  * @return
  */
-util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *job)
+util::Error PackageManagerPrivate::install(uid_t uid, const package::Ref &ref, const QVariantMap &options,
+                                           util::Job *job)
 {
     util::Error result(NoError());
     QString userName = linglong::util::getUserName();
@@ -441,7 +442,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
         return NewError(errorCode, errorMsg);
     }
     runtimeRef.version = installRuntimeInfo->version;
-    qDebug() << "install package need install runtime version:" << installRuntimeInfo->version;
+    qDebug() << "need install runtime version:" << installRuntimeInfo->version;
 
     package::Ref baseRef = getRuntimeBaseRef(runtimeRef);
 
@@ -509,14 +510,14 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
                  });
 
     auto installPath = ostreeRepo.rootOfLayer(targetRef);
-    qDebug() << "check package" << targetRef.toSpecString() << "is installed";
+    qDebug() << "check package" << targetRef.toSpecString() << "install status";
     if (!isUserAppInstalled(userName, targetRef)) {
         extraData[KeyInstallJobStageProgressBegin] = stagePackageProgressBegin;
         extraData[KeyInstallJobStageProgressEnd] = stagePackageProgressEnd;
         ostreeRepo.pull(targetRef, jobController);
         ostreeRepo.checkout(targetRef, "", installPath);
     } else {
-        qDebug() << "package" << targetRef.toSpecString() << "installed";
+        qDebug() << "package" << targetRef.toSpecString() << "is already installed";
         job->setProgress(100, 0, "package is already installed");
         job->setFinish(0, QString("install %1 success").arg(targetRef.toSpecString()));
         return NoError();
@@ -532,12 +533,12 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
         ostreeRepo.pull(runtimeRef, jobController);
         ostreeRepo.checkout(runtimeRef, "", runtimeInstallPath);
         auto ret = linglong::util::insertAppRecord(installRuntimeInfo.get(), "user", userName);
-        qDebug() << "insertAppRecord" << runtimeRef.toString() << ret;
+        qDebug() << "insertAppRecord" << runtimeRef.toSpecString() << ret;
     } else {
         job->setProgress(stageRuntimeProgressEnd, "runtime " + runtimeRef.toSpecString() + " installed");
     }
 
-    qDebug() << "check base" << baseRef.toSpecString() << "is installed";
+    qDebug() << "check base" << baseRef.toSpecString() << "is need install " << needInstallBase;
     auto baseInstallPath = ostreeRepo.rootOfLayer(baseRef);
     if (needInstallBase) {
         // FIXME: update database
@@ -554,6 +555,7 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
     // export files
     result = exportFiles(targetRef);
     if (!result.success()) {
+        job->setFinish(-2, "export files failed");
         return WrapError(result, -2, "export files failed");
     }
     job->setProgress(95, 5, "export files...");
@@ -574,23 +576,71 @@ util::Error PackageManagerPrivate::install(const package::Ref &ref, util::Job *j
         job->setFinish(-2, QString("insertAppRecord failed"));
         return NewError(ret, "insertAppRecord failed");
     }
-    job->setProgress(100, 0, "update database finish");
-    job->setFinish(0, QString("install %1 success").arg(targetRef.toSpecString()));
+    if (!options.contains("install-type")) {
+        job->setProgress(100, 0, "update database finish");
+        job->setFinish(0, QString("install %1 success").arg(targetRef.toSpecString()));
+    }
     return NoError();
 }
 
-util::Error PackageManagerPrivate::update(const package::Ref &ref, util::Job *job)
+util::Error PackageManagerPrivate::update(uid_t uid, const package::Ref &ref, const QVariantMap &options,
+                                          util::Job *job)
 {
+    // 更新指定软件包到仓库中最新版本
     QString userName = linglong::util::getUserName();
 
-    // found ref to update
-    auto targetRef = ref;
+    auto tmpRef = ref;
+    // 未写版本号时，当前ref版本号是latest
+    if ("latest" == tmpRef.version) {
+        tmpRef.version = "";
+    }
     // check is install
-    if (!isUserAppInstalled(userName, targetRef)) {
-        return NewError(-1, "Installed");
+    if (!isUserAppInstalled(userName, tmpRef)) {
+        job->setFinish(-1, QString("%1 not installed").arg(ref.toSpecString()));
+        return NewError(-1, QString("%1 not installed").arg(ref.toSpecString()));
+    }
+    // found latest app
+    util::Error result(NoError());
+    std::unique_ptr<package::MetaInfo> latestMetaInfo;
+    tmpRef.version = "";
+    std::tie(result, latestMetaInfo) = getLatestPackageMetaInfo(tmpRef);
+    if (!latestMetaInfo) {
+        auto errorCode = STATUS_CODE(kErrorPkgQueryFailed);
+        auto errorMsg = QString("query package %1 info failed").arg(ref.toSpecString());
+        job->setFinish(errorCode, errorMsg);
+        return NewError(errorCode, errorMsg);
     }
 
-    install(targetRef, job);
+    package::Ref targetRef = latestMetaInfo->ref();
+    // check latest app is install
+    if (isUserAppInstalled(userName, targetRef)) {
+        job->setProgress(100, 0, "latest package is already installed");
+        job->setFinish(0, QString("update %1 success").arg(targetRef.toSpecString()));
+        return NoError();
+    }
+
+    auto uninstallRefs = findRefsToUninstall(ref, false);
+    if (uninstallRefs.isEmpty()) {
+        job->setFinish(-1, "query installed package failed");
+        return NewError(-1, QString("%1 not installed").arg(ref.toSpecString()));
+    }
+
+    QVariantMap installOpt;
+    installOpt = options;
+    installOpt.insert("install-type", 1);
+    auto ret = install(uid, targetRef, installOpt, job);
+    if (!ret.success()) {
+        job->setFinish(-1, QString("%1 update failed").arg(ref.toSpecString()));
+        return NewError(-1, QString("%1 update failed").arg(ref.toSpecString()));
+    }
+
+    ret = uninstall(uid, uninstallRefs.at(0), options);
+    if (!ret.success()) {
+        job->setFinish(-2, QString("%1 update failed").arg(uninstallRefs.at(0).toSpecString()));
+        return NewError(-2, QString("%1 update failed").arg(uninstallRefs.at(0).toSpecString()));
+    }
+    job->setProgress(100, 0, "update database finish");
+    job->setFinish(0, QString("update %1 success").arg(ref.toSpecString()));
     return NoError();
 }
 
@@ -740,7 +790,7 @@ util::Error PackageManagerPrivate::prunePackageFiles(const package::Ref &ref)
 QList<package::Ref> PackageManagerPrivate::findRefsToUninstall(const package::Ref &ref, bool deleteAllVersion)
 {
     QList<package::Ref> refs;
-    qDebug() << "findRefsToUninstall" << deleteAllVersion;
+    qDebug() << "findRefsToUninstall deleteAllVersion" << deleteAllVersion;
     // FIXME: reply.message = "uninstall " + appId + "/" + version + " is in conflict with all-version param";
     if (!pdb.isPackageInstalled("", ref)) {
         qDebug() << "can not find installed package of" << ref.toSpecString();
@@ -759,7 +809,7 @@ QList<package::Ref> PackageManagerPrivate::findRefsToUninstall(const package::Re
         }
         util::getInstalledAppInfo(ref.appId, version, ref.arch, ref.channel, ref.module, "", pkgList);
     }
-    qDebug() << "pkgList" << pkgList.size();
+    qDebug() << "findRefsToUninstall pkgList size" << pkgList.size();
 
     for (auto const &metaInfo : pkgList) {
         refs << metaInfo->ref();
@@ -836,11 +886,11 @@ Reply PackageManager::ModifyRepo(const QString &url)
 QString PackageManager::Install(const QString &ref, const QVariantMap &options)
 {
     Q_D(PackageManager);
-
+    uid_t uid = getDBusCallerUid(*this);
     auto job = JobManager::instance()->createJob(
         [=](util::Job *job) {
-            qDebug() << "install job start";
-            d->install(package::Ref(ref), job);
+            qDebug() << uid << "install job start";
+            d->install(uid, package::Ref(ref), options, job);
         },
         *this);
 
@@ -850,10 +900,11 @@ QString PackageManager::Install(const QString &ref, const QVariantMap &options)
 QString PackageManager::Update(const QString &ref, const QVariantMap &options)
 {
     Q_D(PackageManager);
+    uid_t uid = getDBusCallerUid(*this);
     auto job = JobManager::instance()->createJob(
         [=](util::Job *job) {
-            qDebug() << "install job start";
-            d->update(package::Ref(ref), job);
+            qDebug() << uid << "update job start";
+            d->update(uid, package::Ref(ref), options, job);
         },
         *this);
 

@@ -31,8 +31,8 @@ public:
 
 public:
     std::tuple<util::Error, QVariantMapList> query(const package::Ref &ref, bool noCache);
-    util::Error install(const package::Ref &ref, util::Job *job);
-    util::Error update(const package::Ref &ref, util::Job *job);
+    util::Error install(uid_t uid, const package::Ref &ref, const QVariantMap &options, util::Job *job);
+    util::Error update(uid_t uid, const package::Ref &ref, const QVariantMap &options, util::Job *job);
     util::Error uninstall(uid_t uid, const package::Ref &ref, const QVariantMap &options);
 
     bool isUserAppInstalled(const QString &userName, const package::Ref &ref);
