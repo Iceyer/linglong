@@ -87,7 +87,14 @@ public:
 
         auto appRef = package::Ref(q->package->ref);
         QString appRootPath = repo->rootOfLayer(appRef);
-
+        qDebug() << "prepare appRootPath:" << appRootPath << "runtimeRootPath:" << runtimeRootPath
+                 << "module:" << appRef.module;
+        if ("devel" == appRef.module) {
+            appRootPath = appRootPath.left(appRootPath.length() - QString("/modules/files").length());
+            fixRuntimePath =
+                runtimeRootPath.left(runtimeRootPath.length() - QString("/modules/devel").length()) + "/files";
+        }
+        qDebug() << "prepare fixRuntimePath:" << fixRuntimePath;
         stageRootfs(runtimeRef.appId, fixRuntimePath, appRef.appId, appRootPath);
 
         stageSystem();
@@ -289,6 +296,7 @@ public:
 
         // 使用overlayfs挂载debug调试符号
         auto debugRef = package::Ref(q_ptr->package->ref);
+        qDebug() << "stageRootfs debugRef " << q_ptr->package->ref;
         if ("devel" == debugRef.module) {
             fuseMount = true;
         }
@@ -317,13 +325,15 @@ public:
                 {"/usr/share/locale/", "/usr/share/locale/"},
             };
 
+            qDebug() << "stageRootfs runtimeRootPath:" << runtimeRootPath << "appRootPath:" << appRootPath;
             // appRootPath/devel/files/debug /usr/lib/debug/opt/apps/appid/files 挂载调试符号
             if ("devel" == debugRef.module) {
+                mountMap.push_back({appRootPath + "/modules/devel/files/debug",
+                                    "/usr/lib/debug/opt/apps/" + debugRef.appId + "/files"});
+                // runtime 只用挂载modules/devel/files/debug 目录
                 mountMap.push_back(
-                    {appRootPath + "/devel/files/debug", "/usr/lib/debug/opt/apps/" + debugRef.appId + "/files"});
-                mountMap.push_back(
-                    {runtimeRootPath.left(runtimeRootPath.length() - QString("/files").length()) + "/devel/files/debug",
-                     "/usr/lib/debug/" + runtimeRef.appId});
+                    {runtimeRootPath.left(runtimeRootPath.length() - QString("/files").length()) + "/modules/devel/files/debug",
+                     "/usr/lib/debug/runtime"});
             }
 
             // FIXME(iceyer): extract for wine, remove later

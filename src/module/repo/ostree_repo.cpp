@@ -810,7 +810,7 @@ OSTreeRepo::OSTreeRepo(const QString &localRepoPath, const QString &remoteEndpoi
 }
 
 util::Error OSTreeRepo::checkout(const package::Ref &ref, const QString &subPath, const QString &targetPath,
-                                           const QStringList &extraArgs)
+                                 const QStringList &extraArgs)
 {
     QStringList args = {"checkout", "--union"};
     if (!subPath.isEmpty()) {
@@ -961,12 +961,44 @@ util::Error OSTreeRepo::remove(const package::Ref &ref)
     auto layerPath = rootOfLayer(ref);
     if (ref.module == kMainModule) {
         QDir layerDir(layerPath);
+        layerDir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
         for (auto const &entry : layerDir.entryInfoList()) {
-            if (entry.isDir() && entry.fileName() == kModuleParentName)
+            if (entry.isDir() && entry.fileName() != kModuleParentName) {
                 util::removeDir(entry.absoluteFilePath());
+            } else {
+                if (entry.isFile()) {
+                    entry.dir().remove(entry.fileName());
+                }
+            }
         }
     } else {
         util::removeDir(layerPath);
+    }
+
+    // 删除空目录
+    QString modulePath =
+        QStringList {dd_ptr->repoRootPath, "layers", ref.appId, ref.version, ref.arch, kModuleParentName}.join(
+            QDir::separator());
+    QDir moduleDir(modulePath);
+    moduleDir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+    if (moduleDir.entryInfoList().size() <= 0) {
+        util::removeDir(modulePath);
+    }
+
+    QString archPath =
+        QStringList {dd_ptr->repoRootPath, "layers", ref.appId, ref.version, ref.arch}.join(QDir::separator());
+    QDir archDir(archPath);
+    archDir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+    if (archDir.entryInfoList().size() <= 0) {
+        util::removeDir(QStringList {dd_ptr->repoRootPath, "layers", ref.appId, ref.version}.join(QDir::separator()));
+    }
+
+    QString appIdPath = QStringList {dd_ptr->repoRootPath, "layers", ref.appId}.join(QDir::separator());
+    QDir appIdPathDir(appIdPath);
+    appIdPathDir.setFilter(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot);
+    if (appIdPathDir.entryInfoList().size() <= 0) {
+        qDebug() << "remove dir" << appIdPath;
+        util::removeDir(appIdPath);
     }
     return NoError();
 }

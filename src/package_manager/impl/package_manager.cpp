@@ -425,6 +425,8 @@ util::Error PackageManagerPrivate::install(uid_t uid, const package::Ref &ref, c
 
     package::Ref targetRef = latestMetaInfo->ref();
     package::Ref runtimeRef(latestMetaInfo->runtime);
+    runtimeRef.channel = targetRef.channel;
+    runtimeRef.module = targetRef.module;
     // runtime 未锁版本号时获取最新版本runtime
     qDebug() << "install package runtime info:" << latestMetaInfo->runtime
              << ", package runtime version:" << runtimeRef.version;
@@ -962,7 +964,6 @@ QVariantMapList PackageManager::Query(const QString &ref, const QVariantMap &opt
         sendErrorReply(dbusErrorName(err.code()), err.message());
     }
 
-    qDebug() << packages;
     return packages;
 }
 
