@@ -921,6 +921,18 @@ public:
             r->mounts.push_back(m);
         }
 
+        // deepin-mail need save data with /tmp/deepin-mail-web
+        {
+            auto deepinEmailTmpSharePath = "/tmp/deepin-mail-web";
+            util::ensureDir(deepinEmailTmpSharePath);
+            QPointer<Mount> m(new Mount(r));
+            m->type = "bind";
+            m->options = QStringList {"rbind"};
+            m->source = deepinEmailTmpSharePath;
+            m->destination = deepinEmailTmpSharePath;
+            r->mounts.push_back(m);
+        }
+
         // Fixme: deepin-manual share data, should be removed later
         {
             auto deepinManualFilePath =
