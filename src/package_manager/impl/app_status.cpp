@@ -116,27 +116,25 @@ int updateInstalledAppInfoDb()
  */
 int insertAppRecord(linglong::package::MetaInfo *package, const QString &installType, const QString &userName)
 {
-    // installType 字段暂时保留
-    QString insertSql =
-        QString(
-            "INSERT INTO installedAppInfo(appId,name,version,arch,kind,runtime,uabUrl,repoName,description,user,size,channel,module) VALUES('%1','%2','%3','%4','%5','%6','%7','%8','%9','%10','%11','%12','%13')")
-            .arg(package->appId)
-            .arg(package->name)
-            .arg(package->version)
-            //.arg(package.appArch.join(","))
-            .arg(package->arch)
-            .arg(package->kind)
-            .arg(package->runtime)
-            .arg(package->uabUrl)
-            .arg(package->repoName)
-            .arg(package->description)
-            .arg(userName)
-            .arg(package->size)
-            .arg(package->channel)
-            .arg(package->module);
-
     Connection connection;
-    QSqlQuery sqlQuery = connection.execute(insertSql);
+    QString insertSql =
+        "INSERT INTO installedAppInfo(appId,name,version,arch,kind,runtime,uabUrl,repoName,description,user,size,channel,module) "
+        "VALUES(:appId,:name,:version,:arch,:kind,:runtime,:uabUrl,:repoName,:description,:user,:size,:channel,:module)";
+    QVariantMap valueMap;
+    valueMap.insert(":appId", package->appId);
+    valueMap.insert(":name", package->name);
+    valueMap.insert(":version", package->version);
+    valueMap.insert(":arch", package->arch);
+    valueMap.insert(":kind", package->kind);
+    valueMap.insert(":runtime", package->runtime);
+    valueMap.insert(":uabUrl", package->uabUrl);
+    valueMap.insert(":repoName", package->repoName);
+    valueMap.insert(":description", package->description);
+    valueMap.insert(":user", userName);
+    valueMap.insert(":size", package->size);
+    valueMap.insert(":channel", package->channel);
+    valueMap.insert(":module", package->module);
+    QSqlQuery sqlQuery = connection.execute(insertSql, valueMap);
     if (QSqlError::NoError != sqlQuery.lastError().type()) {
         qCritical() << "execute insertSql error:" << sqlQuery.lastError().text();
         return STATUS_CODE(kFail);

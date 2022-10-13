@@ -30,6 +30,7 @@ public:
     explicit Connection(QObject *parent = nullptr);
     ~Connection();
     QSqlQuery execute(const QString &sql); // 执行sql语句
+    QSqlQuery execute(const QString &sql, const QVariantMap &valueMap);
 
 private:
     QSqlDatabase getConnection(); // 创建数据库连接
@@ -39,8 +40,7 @@ private:
     QString databaseName; // 如果是 SQLite 则为数据库文件名
     QString databaseType;
 
-    bool testOnBorrow; // 取得连接的时候验证连接是否有效
-    QString testOnBorrowSql; // 测试访问数据库的 SQL
+    QString testStateSql; // 测试访问数据库的 SQL
 
     QSqlDatabase connection;
 
