@@ -26,6 +26,7 @@ set(LL_SERVICE_SOURCES
     ../module/runtime/app.cpp
     ../module/runtime/container.cpp
     ../module/runtime/oci.h
+    ../module/runtime/app_config.h
     ../module/util/config/config.cpp
     ../module/util/config/config.h
     ../module/util/connection.cpp

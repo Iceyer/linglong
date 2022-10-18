@@ -13,6 +13,7 @@
 
 #include "oci.h"
 #include "app.h"
+#include "app_config.h"
 
 namespace linglong {
 namespace runtime {
@@ -28,6 +29,7 @@ inline void registerAllMetaType()
         qSerializeRegister<linglong::runtime::Permissions>();
         qSerializeRegister<linglong::runtime::App>();
         qSerializeRegister<linglong::runtime::Container>();
+        qSerializeRegister<linglong::runtime::AppConfig>();
     });
 }
 
