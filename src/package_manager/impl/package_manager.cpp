@@ -106,6 +106,23 @@ uid_t getDBusCallerUid(QDBusContext &ctx)
     return -1;
 }
 
+std::unique_ptr<package::MetaInfo> takeLatestRuntime(const package::Ref &ref, package::MetaInfoList &appList)
+{
+    int latestIndex = 0;
+    QString curVersion = linglong::util::APP_MIN_VERSION;
+    // runtime更新只匹配前面三位，info.json中的runtime version格式必须是3位或4位点分十进制
+    for (int index = 0; index < appList.size(); ++index) {
+        auto item = appList.at(index);
+        linglong::util::AppVersion dstVersion(curVersion);
+        linglong::util::AppVersion iterVersion(item->version);
+        if (ref.appId == item->appId && iterVersion.isBigThan(dstVersion) && item->version.startsWith(ref.version)) {
+            curVersion = item->version;
+            latestIndex = index;
+        }
+    }
+    return std::unique_ptr<package::MetaInfo>(appList.takeAt(latestIndex).data());
+}
+
 std::unique_ptr<package::MetaInfo> takeLatestApp(const QString &appId, package::MetaInfoList &appList)
 {
     int latestIndex = 0;
@@ -410,8 +427,8 @@ util::Error PackageManagerPrivate::install(uid_t uid, const package::Ref &ref, c
                                            util::Job *job)
 {
     util::Error result(NoError());
-    QString userName = linglong::util::getUserName();
-
+    // QString userName = linglong::util::getUserName();
+    const QString userName = "deepin-linglong";
     std::unique_ptr<package::MetaInfo> latestMetaInfo;
     std::tie(result, latestMetaInfo) = getLatestPackageMetaInfo(ref);
 
@@ -427,15 +444,22 @@ util::Error PackageManagerPrivate::install(uid_t uid, const package::Ref &ref, c
     package::Ref runtimeRef(latestMetaInfo->runtime);
     runtimeRef.channel = targetRef.channel;
     runtimeRef.module = targetRef.module;
-    // runtime 未锁版本号时获取最新版本runtime
+
     qDebug() << "install package runtime info:" << latestMetaInfo->runtime
              << ", package runtime version:" << runtimeRef.version;
     QStringList runtimeVersion = runtimeRef.version.split(".");
     std::unique_ptr<package::MetaInfo> installRuntimeInfo = nullptr;
-    if (runtimeVersion.size() != 4) {
-        runtimeRef.version = "";
+    // runtime更新只匹配前面三位，info.json中的runtime version格式必须是3位或4位点分十进制
+    if (runtimeVersion.size() < 3) {
+        auto errorCode = STATUS_CODE(kPkgInstallFailed);
+        auto errorMsg = QString("package %1 runtime format err, runtime ref:%2")
+                            .arg(ref.toSpecString())
+                            .arg(latestMetaInfo->runtime);
+        job->setProgress(100, 0, errorMsg);
+        job->setFinish(errorCode, errorMsg);
+        return NewError(errorCode, errorMsg);
     }
-    std::tie(result, installRuntimeInfo) = getLatestPackageMetaInfo(runtimeRef);
+    std::tie(result, installRuntimeInfo) = getLatestPackageMetaInfo(runtimeRef, true);
     if (!installRuntimeInfo) {
         auto errorCode = STATUS_CODE(kPkgInstallFailed);
         auto errorMsg = QString("query package %1 failed").arg(runtimeRef.toSpecString());
@@ -567,7 +591,7 @@ util::Error PackageManagerPrivate::install(uid_t uid, const package::Ref &ref, c
     qDebug() << "call systemHelperInterface.RebuildInstallPortal" << installPath << ref.toSpecString();
     QDBusReply<void> reply = systemHelperInterface.RebuildInstallPortal(installPath, ref.toSpecString(), {});
     if (!reply.isValid()) {
-        qCritical() << "process post install portal failed:" << reply.error();
+        qWarning() << "process post install portal failed:" << reply.error();
     }
 
     // update database
@@ -667,15 +691,21 @@ package::Ref PackageManagerPrivate::getRuntimeBaseRef(const package::Ref &ref)
 }
 
 std::tuple<util::Error, std::unique_ptr<package::MetaInfo>>
-PackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref)
+PackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref, bool isRuntime)
 {
     package::Ref latestRef("");
     std::unique_ptr<package::MetaInfo> latestMetaInfo(nullptr);
     Reply reply;
     QString appData = "";
 
+    // runtime版本号为4位点分十进制时，查询固定版本，否则查询最新版本
+    QString version = ref.version;
+    if (isRuntime && version.split(".").length() != 4) {
+        version = "";
+    }
+
     // 安装不查缓存
-    auto ret = getAppInfoFromServer(ref.appId, ref.version, ref.arch, appData, reply.message);
+    auto ret = getAppInfoFromServer(ref.appId, version, ref.arch, appData, reply.message);
     if (!ret) {
         return {NewError(STATUS_CODE(kPkgInstallFailed), reply.message), std::move(latestMetaInfo)};
     }
@@ -691,12 +721,16 @@ PackageManagerPrivate::getLatestPackageMetaInfo(const package::Ref &ref)
     }
 
     // 查找最高版本，多版本场景安装应用appId要求完全匹配
-    latestMetaInfo = takeLatestApp(ref.appId, appList);
+    if (isRuntime) {
+        latestMetaInfo = takeLatestRuntime(ref, appList);
+    } else {
+        latestMetaInfo = takeLatestApp(ref.appId, appList);
+    }
 
     // fix: 当前服务端不支持按channel查询，返回的结果是默认channel，需要刷新channel/module
     latestMetaInfo->channel = ref.channel;
     latestMetaInfo->module = ref.module;
-    qDebug() << "latestMetaInfo" << latestMetaInfo->appId << latestMetaInfo->version << latestMetaInfo->runtime;
+    qDebug() << "getLatestPackageMetaInfo " << latestMetaInfo->appId << latestMetaInfo->version << latestMetaInfo->runtime;
 
     // 不支持模糊安装
     if (ref.appId != latestMetaInfo->appId) {

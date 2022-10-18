@@ -39,7 +39,8 @@ public:
     bool isUserRuntimeInstalled(const QString &userName, const package::Ref &ref);
     bool isUserBaseInstalled(const QString &userName, const package::Ref &ref);
 
-    std::tuple<util::Error, std::unique_ptr<package::MetaInfo>> getLatestPackageMetaInfo(const package::Ref &ref);
+    std::tuple<util::Error, std::unique_ptr<package::MetaInfo>> getLatestPackageMetaInfo(const package::Ref &ref,
+                                                                                         bool isRuntime = false);
 
     package::Ref getRuntimeBaseRef(const package::Ref &ref);
 

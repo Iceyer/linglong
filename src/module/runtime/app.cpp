@@ -26,6 +26,7 @@
 #include "module/util/file.h"
 #include "module/util/xdg.h"
 #include "module/util/desktop_entry.h"
+#include "module/util/version.h"
 #include "module/dbus_ipc/package_manager_param.h"
 #include "module/package/info.h"
 #include "module/repo/repo.h"
@@ -985,6 +986,24 @@ public:
         return 0;
     }
 
+    static QString getMathedRuntime(const QString &runtimeId, const QString &runtimeVersion)
+    {
+        auto localRepoRoot = util::getLinglongRootPath() + "/layers/" + runtimeId;
+        QDir appRoot(localRepoRoot);
+        appRoot.setSorting(QDir::Name | QDir::Reversed);
+        auto versionDirs = appRoot.entryList(QDir::NoDotAndDotDot | QDir::Dirs);
+        auto available = linglong::util::APP_MIN_VERSION;
+        for (const auto &item : versionDirs) {
+            linglong::util::AppVersion versionIter(item);
+            linglong::util::AppVersion dstVersion(available);
+            if (versionIter.isValid() && versionIter.isBigThan(dstVersion) && item.startsWith(runtimeVersion)) {
+                available = item;
+            }
+        }
+        qDebug() << "getMathedRuntime info" << available << appRoot << versionDirs;
+        return available;
+    }
+
     // FIXME: none static
     static QString loadConfig(repo::Repo *repo, const QString &appId, const QString &appVersion, const QString &channel,
                               const QString &module, bool isFlatpakApp = false)
@@ -1028,10 +1047,10 @@ public:
         QString appRefStr = latestAppRef.toSpecString();
 
         package::Ref runtimeRef(info->runtime);
+        qDebug() << "loadConfig runtime" << info->runtime;
         // 获取最新版本runtime
         if (runtimeRef.version.split(".").size() != 4) {
-            auto latestRuntimeRef = repo->latestOfRef(runtimeRef.appId, "");
-            runtimeRef.version = latestRuntimeRef.version;
+            runtimeRef.version = getMathedRuntime(runtimeRef.appId, runtimeRef.version);
         }
 
         runtimeRef.channel = channel;
